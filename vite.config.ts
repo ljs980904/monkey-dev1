@@ -57,10 +57,6 @@ export default defineConfig({
 
     // 油猴
     monkey({
-      // meta: {
-      //   grant: 'none',
-      //   runAt: 'document-end',
-      // },
       /**
        * 脚本文件的入口路径
        */
@@ -68,12 +64,12 @@ export default defineConfig({
       userscript: {
         icon: 'https://vitejs.dev/logo.svg',
         namespace: 'npm/vite-plugin-monkey',
-        require: [
-          cdn.jsdelivr('vue', 'dist/vue.global.prod.js'),
-          'https://unpkg.com/vue-demi@latest/lib/index.iife.js',
-          cdn.jsdelivr('element-plus', 'dist/index.full.min.js'),
-          cdn.jsdelivr('pinia', 'dist/pinia.min.js'),
-        ],
+        // require: [
+        //   cdn.jsdelivr('vue', 'dist/vue.global.prod.js'),
+        //   'https://unpkg.com/vue-demi@latest/lib/index.iife.js',
+        //   cdn.jsdelivr('element-plus', 'dist/index.full.min.js'),
+        //   cdn.jsdelivr('pinia', 'dist/pinia.min.js'),
+        // ],
         match: [
           'https://mooc1.chaoxing.com/*',
           'https://mooc1-1.chaoxing.com/*',
@@ -86,7 +82,6 @@ export default defineConfig({
 
       server: {
         mountGmApi: true,
-
         /**
          * 当 第一次启动 或 脚本配置注释改变时 自动在默认浏览器打开脚本
          * @default true
@@ -105,7 +100,6 @@ export default defineConfig({
          * @default (package.json.name||'monkey')+'.user.js'
          */
         fileName: 'assistant.user.js',
-
         /**
          * @example
          * {
@@ -148,14 +142,14 @@ export default defineConfig({
         //  *   'element-plus/dist/index.css': cdn.jsdelivr(),
         //  * }
         // 外部包配置
-        externalGlobals: {
-          vue: 'Vue',
-          'element-plus': 'ElementPlus',
-          pinia: 'Pinia',
-        },
-        externalResource: {
-          'element-plus/dist/index.css': cdn.jsdelivr(),
-        },
+        // externalGlobals: {
+        //   vue: 'Vue',
+        //   'element-plus': 'ElementPlus',
+        //   pinia: 'Pinia',
+        // },
+        // externalResource: {
+        //   'element-plus/dist/index.css': cdn.jsdelivr(),
+        // },
         minifyCss: true,
         /**
          * 自动识别代码里用到的 浏览器插件api，然后自动配置 GM_* 或 GM.* 函数到脚本配置注释头

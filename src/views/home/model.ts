@@ -45,7 +45,7 @@ export const LOG_VAL = {
   // error: '当前处理错误',
 };
 export const getSetUp = () => {
-  const data: any = reactive({
+  const data = reactive({
     host: '',
     dialogTableVisible: true,
     htmlEle: {

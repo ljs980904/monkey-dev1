@@ -1,4 +1,5 @@
 class ListenerVideo {
+  private videoEle: HTMLVideoElement | null | any = null;
   constructor() {}
   initVideoInfo(ele: any) {
     this.videoEle = ele;

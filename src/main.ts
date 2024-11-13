@@ -10,7 +10,7 @@ import App from './App.vue';
 
 const initApp = () => {
   const app = createApp(App);
-  app.use(ElementPlus, { locale: zhCn, '--el-color-primary': '#008CFF' });
+  app.use(ElementPlus, { locale: zhCn });
   app.use(pinia);
   app.use(Directives);
   app.mount(
@@ -24,4 +24,4 @@ const initApp = () => {
     })()
   );
 };
-initApp();
+window.addEventListener('load', initApp);
