@@ -41,16 +41,30 @@ interface ComponentProps {
   title: string;
   statusInfo: StatusInfo;
 }
+defineProps({
+  list: {
+    type: Array as () => LogItem[],
+    required: true,
+  },
+  title: {
+    type: String,
+    required: true,
+  },
+  statusInfo: {
+    type: Object as () => StatusInfo,
+    required: true,
+  },
+});
 
 // 使用 withDefaults 设置默认值并应用类型
-const props = withDefaults(defineProps<ComponentProps>(), {
-  list: () => [],
-  title: 'AI 助手',
-  statusInfo: () => ({
-    text: '正在执行',
-    type: 'info',
-  }),
-});
+// const props = withDefaults(defineProps<ComponentProps>(), {
+//   list: () => [],
+//   title: 'AI 助手',
+//   statusInfo: () => ({
+//     text: '正在执行',
+//     type: 'info',
+//   }),
+// });
 
 // 引用日志体元素
 const logBodyRef = ref<HTMLElement | null>(null);

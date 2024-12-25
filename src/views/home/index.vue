@@ -186,48 +186,45 @@ const initTask = () => {
     processCurrentTab();
   }
 };
+// 找出正确答案所在的索引
+const findCorrectOptionIndices = (options, correctAnswers) => {
+  // 创建一个空数组来存储正确答案的索引
+  let correctIndices = [];
+  // 遍历每个正确答案
+  for (let answer of correctAnswers) {
+    // 找到该答案在选项数组中的索引
+    let index = options.findIndex((option) => option.startsWith(answer));
+    // 如果找到了索引，将其添加到结果数组中
+    if (index !== -1) {
+      correctIndices.push(index);
+    }
+  }
+  return correctIndices;
+};
+
 // 发送请求
 const simulateRequest = async (ele, data) => {
   return new Promise<void>((resolve) => {
-    debugger;
     const params = `题目：${data.question}，选项：${data.options}`;
     request(
       `${url.value}/answer?topic=${params}`,
       'get',
       {},
       (response) => {
-        debugger;
         const resData = JSON.parse(response);
         console.log(resData);
-        const content =
-          resData.correct_answer?.output?.choices[0]?.message?.content;
-        const index = data.options.findIndex((v) => {
-          return v.includes(content);
+        const content = JSON.parse(
+          resData?.output?.choices[0]?.message?.content
+        );
+        findCorrectOptionIndices(data.options, content)?.forEach((i) => {
+          ele[i].onclick();
         });
-        if (index != -1) {
-          ele[index].onclick();
-        }
         resolve();
       },
       (err) => {
         console.log(err);
       }
     );
-
-    // 返回数据后 根据选型判断选中值 并使用ele.onclick(); 选中 然后使用  resolve(mockResponse); 回调
-    // arrs.find((item) =>item.)
-
-    // for (let i = 0; i < ele.length; i++) {
-    //   const element = ele[i];
-    // }
-
-    // setTimeout(() => {
-    //   // 模拟返回的数据
-    //   const mockResponse = {
-    //     correct_answer: 'A:语义性', // 假设这是正确的答案
-    //   };
-    //   resolve(mockResponse);
-    // }, 1000);
   });
 };
 
@@ -240,7 +237,6 @@ const subEvent = () => {
   }
 };
 const autoAnswer = async (taskEle) => {
-  debugger;
   const singleQues = taskEle.querySelector('.ZyBottom');
   if (!singleQues) return;
   // 获取当前页面的所有题目
@@ -254,8 +250,7 @@ const autoAnswer = async (taskEle) => {
     const options = liArrs.map((option: any) => cleanText(option.textContent));
     console.log(options);
     console.log(li);
-    console.log(liArrs);
-    console.log({ question, options });
+    await sleep(1000);
     // TODO  解决各种类型题目答案返回问题 目前python 服务有问题
     // 请求发送 并将将结果直接对当前的元素进行答题
     await simulateRequest(li, {
@@ -263,11 +258,11 @@ const autoAnswer = async (taskEle) => {
       options,
     });
   }
-  // const saveEles = taskEle.querySelector('.ZY_sub.clearfix');
-  // const saveEle = saveEles.querySelector('.btnSubmit.workBtnIndex');
-  // saveEle?.click();
-  // await sleep(2000);
-  // subEvent();
+  const saveEles = taskEle.querySelector('.ZY_sub.clearfix');
+  const saveEle = saveEles.querySelector('.btnSubmit.workBtnIndex');
+  saveEle?.click();
+  await sleep(2000);
+  subEvent();
 };
 
 // 章节检测
@@ -300,7 +295,6 @@ const testRq = async (data) => {
       'get',
       {},
       (response) => {
-        debugger;
         const resData = JSON.parse(response);
         console.log(resData);
         const content =
@@ -320,16 +314,16 @@ onMounted(async () => {
   addList({ message: '脚本加载成功', level: 'warning' });
   await nextTick();
   await sleep(2000);
-  // initTask();
+  initTask();
 });
 const dialogVisible = ref(true);
 </script>
 <template>
-  <LogDialog v-model:list="list" v-if="dialogVisible">
+  <log-dialog v-model:list="list" v-if="dialogVisible">
     <button @click="runTest">测试</button>
 
     <button @click="testRq(questionData)">测试</button>
-  </LogDialog>
+  </log-dialog>
 </template>
 
 <style scoped>

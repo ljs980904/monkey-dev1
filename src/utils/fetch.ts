@@ -15,14 +15,12 @@ export const request = (
   onSuccess: Function,
   onError: Function
 ) => {
-  debugger;
   console.log(GM);
   GM.xmlHttpRequest({
     method: method,
     url: url,
     data: method === 'POST' ? data : null,
     onload: function (response) {
-      debugger;
       if (response.status >= 200 && response.status < 300) {
         if (onSuccess) {
           onSuccess(response.responseText);
