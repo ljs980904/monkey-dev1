@@ -22,7 +22,6 @@
 
 <script lang="ts" setup>
 import { ref, onMounted, watch } from 'vue';
-import { withDefaults, defineProps } from 'vue';
 
 // 定义 Prop 类型
 interface LogItem {

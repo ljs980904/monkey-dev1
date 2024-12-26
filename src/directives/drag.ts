@@ -16,8 +16,8 @@ const drag = {
 
     const enableDrag = (element) => {
       let startTransform = window.getComputedStyle(element).transform;
-      let startPosition = null;
-      let draggingMoveVectorRange = null;
+      let startPosition: any = null;
+      let draggingMoveVectorRange: any = null;
       let draggedMoveVector = [0, 0];
       let draggingMoveVector = [0, 0];
 

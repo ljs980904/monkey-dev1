@@ -5,7 +5,7 @@ class ListenerVideo {
     this.videoEle = ele;
   }
   init() {
-    this.videoEle.addEventListener('loadedmetadata', function () {
+    this.videoEle.addEventListener('loadedmetadata', () => {
       //加载数据
       //视频的总长度
       console.log('视频的总长度---', this.videoEle.duration);

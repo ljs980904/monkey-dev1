@@ -9,7 +9,12 @@ import {
   EXCLUDES_TASK,
   cleanText,
 } from './model';
-const { list, sleep, addList, activeName, settingForm, url } = getSetUp();
+const { list, sleep, addList, url } = getSetUp() as {
+  list: any;
+  sleep: (ms: any) => Promise<unknown>;
+  addList: (obj: any) => void;
+  url: any;
+};
 // 用于保存resolve函数
 let currentPageTabs: any = []; // 当前tab
 let nowIdx = 0; // 当前tab索引
@@ -34,7 +39,7 @@ const next = async () => {
   nextButton?.onclick();
   resetVal();
   await sleep(3000);
-  // requestAnimationFrame(initTask);
+  requestAnimationFrame(initTask);
 };
 
 // 检测页面是否完全加载
@@ -122,7 +127,7 @@ const playVideo = async (iframeEle: HTMLElement) => {
 const initializeCurrentPageTabs = () => {
   const prevTitle = document.querySelector('.prev_title');
   // 排除不需要进入的标题
-  if (EXCLUDES_TASK.tasks.includes(prevTitle?.innerHTML)) {
+  if (EXCLUDES_TASK.tasks.includes(prevTitle?.innerHTML as string)) {
     return;
   }
 
@@ -189,14 +194,14 @@ const initTask = () => {
 // 找出正确答案所在的索引
 const findCorrectOptionIndices = (options, correctAnswers) => {
   // 创建一个空数组来存储正确答案的索引
-  let correctIndices = [];
+  let correctIndices: any = [];
   // 遍历每个正确答案
   for (let answer of correctAnswers) {
     // 找到该答案在选项数组中的索引
     let index = options.findIndex((option) => option.startsWith(answer));
     // 如果找到了索引，将其添加到结果数组中
     if (index !== -1) {
-      correctIndices.push(index);
+      correctIndices.push(index as number);
     }
   }
   return correctIndices;
@@ -319,11 +324,15 @@ onMounted(async () => {
 const dialogVisible = ref(true);
 </script>
 <template>
-  <log-dialog v-model:list="list" v-if="dialogVisible">
-    <button @click="runTest">测试</button>
-
-    <button @click="testRq(questionData)">测试</button>
-  </log-dialog>
+  <LogDialog
+    v-model:list="list"
+    v-if="dialogVisible"
+    :title="''"
+    :statusInfo="{ text: '正在执行', type: 'info' }"
+  >
+    <!-- <button @click="runTest">测试</button>
+    <button @click="testRq(questionData)">测试</button> -->
+  </LogDialog>
 </template>
 
 <style scoped>
