@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import LogDialog from '../../components/dialog/index.vue';
 import { request } from '../../utils/fetch';
-import { questionData } from './mock';
+// import { questionData } from './../../mock/mock';
 import {
   getSetUp,
   getNestedIframeDocument,
@@ -9,11 +9,12 @@ import {
   EXCLUDES_TASK,
   cleanText,
 } from './model';
-const { list, sleep, addList, url } = getSetUp() as {
+const { list, sleep, addList, url, title } = getSetUp() as {
   list: any;
   sleep: (ms: any) => Promise<unknown>;
   addList: (obj: any) => void;
   url: any;
+  title: string;
 };
 // 用于保存resolve函数
 let currentPageTabs: any = []; // 当前tab
@@ -72,9 +73,32 @@ const videoListener = (
     play: () => {
       addList({ message: '视频开始播放', level: 'success' });
     },
+    pause: () => {
+      console.log(videoElement);
+      // 遇到暂停时 判断是否做题 如果存在当前按钮 则出发继续按钮
+      const isContinue = videoElement?.parentElement?.querySelector(
+        '#videoquiz-continue'
+      );
+      if (isContinue) {
+        const isContinueButton = isContinue as HTMLButtonElement;
+        // 跳过题目 继续播放
+        isContinueButton?.click();
+        addList({ message: '视频继续播放', level: 'warning' });
+      }
+      // 视频暂停时 会出现题目 答题完成之后 继续播放
+      console.log('视频暂停');
+    },
+    playing: () => {
+      console.log('视频正在播放');
+      // addList({ message: '视频正在播放', level: 'success' });
+    },
     ended: () => {
+      // 结束
+      console.log('视频播放结束');
+
       removeEventListeners();
       resolve();
+      addList({ message: '视频播放完成', level: 'warning' });
     },
     error: () => {
       removeEventListeners();
@@ -149,16 +173,22 @@ const executeFunc = async (ele) => {
         // 如果已完成 跳过
         await playVideo(ele).then(resolve).catch(reject);
       }
+      // if (gen1051.includes(TASK_TEXTS.successTxt)) {
+      //   // 如果已完成 跳过
+      //   await playVideo(ele).then(resolve).catch(reject);
+      // }
     } else if (innerText.includes(TASK_TEXTS.detection)) {
       // addList({ value: '章节检测暂不支持，跳过', type: 'warning' });
       const gen1050 = ele.querySelector('#ext-gen1050')?.ariaLabel || '未完成';
       if (!gen1050.includes(TASK_TEXTS.successTxt)) {
+        addList({ value: '检测到任务带点，正在解析', type: 'warning' });
         await sleep(3000);
         await runTest(ele);
       }
     } else {
       await addList({ message: '本章没有任务点，跳过', level: 'warning' });
     }
+    await sleep(1000);
     resolve();
   });
 };
@@ -244,6 +274,7 @@ const subEvent = () => {
 const autoAnswer = async (taskEle) => {
   const singleQues = taskEle.querySelector('.ZyBottom');
   if (!singleQues) return;
+  addList({ message: '开始答题', level: 'warning' });
   // 获取当前页面的所有题目
   const singleChoiceQuestions = singleQues.querySelectorAll('.singleQuesId');
   for (const questions of singleChoiceQuestions) {
@@ -253,72 +284,70 @@ const autoAnswer = async (taskEle) => {
     const li = questions.querySelectorAll('ul li');
     const liArrs = Array.from(li);
     const options = liArrs.map((option: any) => cleanText(option.textContent));
-    console.log(options);
-    console.log(li);
     await sleep(1000);
-    // TODO  解决各种类型题目答案返回问题 目前python 服务有问题
     // 请求发送 并将将结果直接对当前的元素进行答题
     await simulateRequest(li, {
       question: cleanText(question),
       options,
     });
   }
+  addList({ message: '答题已完成', level: 'success' });
+  // 提交
   const saveEles = taskEle.querySelector('.ZY_sub.clearfix');
-  const saveEle = saveEles.querySelector('.btnSubmit.workBtnIndex');
+  const saveEle = saveEles?.querySelector('.btnSubmit.workBtnIndex');
   saveEle?.click();
+  addList({ message: '正在提交', level: 'success' });
   await sleep(2000);
   subEvent();
+  await sleep(2000);
+  addList({ message: '提交完成', level: 'success' });
 };
 
 // 章节检测
 const runTest = async (ele) => {
-  console.log(ele);
-
-  const iframeDocument = getNestedIframeDocument('iframe');
-  const taskDoc = iframeDocument
-    ?.querySelector('iframe')
-    ?.contentWindow?.document?.querySelector('iframe')?.contentWindow?.document;
-  // 获取最终的 task 文档
-  // const taskDoc = ele
+  // const iframeDocument = getNestedIframeDocument('iframe');
+  // const taskDoc = iframeDocument
   //   ?.querySelector('iframe')
   //   ?.contentWindow?.document?.querySelector('iframe')?.contentWindow?.document;
+  // 获取最终的 task 文档
+  const taskDoc = ele
+    ?.querySelector('iframe')
+    ?.contentWindow?.document?.querySelector('iframe')?.contentWindow?.document;
   if (taskDoc) {
     // 获取检测数据
     await autoAnswer(taskDoc);
-    // initTask();
   }
 };
 
 // 测试
-const testRq = async (data) => {
-  try {
-    console.log();
-    const params = `题目：${data.question}，选项：${data.options}`;
+// const testRq = async (data) => {
+//   try {
+//     console.log();
+//     const params = `题目：${data.question}，选项：${data.options}`;
 
-    request(
-      `${url.value}/answer?topic=${params}`,
-      'get',
-      {},
-      (response) => {
-        const resData = JSON.parse(response);
-        console.log(resData);
-        const content =
-          resData.correct_answer?.output?.choices[0]?.message?.content;
-        console.log(content);
-      },
-      (err) => {
-        return err;
-      }
-    );
-  } catch (error) {
-    console.log(error);
-  }
-};
+//     request(
+//       `${url.value}/answer?topic=${params}`,
+//       'get',
+//       {},
+//       (response) => {
+//         const resData = JSON.parse(response);
+//         console.log(resData);
+//         const content =
+//           resData.correct_answer?.output?.choices[0]?.message?.content;
+//         console.log(content);
+//       },
+//       (err) => {
+//         return err;
+//       }
+//     );
+//   } catch (error) {
+//     console.log(error);
+//   }
+// };
 
 onMounted(async () => {
   addList({ message: '脚本加载成功', level: 'warning' });
   await nextTick();
-  await sleep(2000);
   initTask();
 });
 const dialogVisible = ref(true);
@@ -327,7 +356,7 @@ const dialogVisible = ref(true);
   <LogDialog
     v-model:list="list"
     v-if="dialogVisible"
-    :title="''"
+    :title="title"
     :statusInfo="{ text: '正在执行', type: 'info' }"
   >
     <!-- <button @click="runTest">测试</button>

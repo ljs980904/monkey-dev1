@@ -55,41 +55,11 @@ defineProps({
   },
 });
 
-// 使用 withDefaults 设置默认值并应用类型
-// const props = withDefaults(defineProps<ComponentProps>(), {
-//   list: () => [],
-//   title: 'AI 助手',
-//   statusInfo: () => ({
-//     text: '正在执行',
-//     type: 'info',
-//   }),
-// });
 
 // 引用日志体元素
 const logBodyRef = ref<HTMLElement | null>(null);
 
-// 滚动到底部的函数
-// const scrollToBottom = () => {
-//   if (logBodyRef.value) {
-//     logBodyRef.value.scrollTop = logBodyRef.value.scrollHeight;
-//   }
-// };
 
-// 监听 list 变化，当有新日志时自动滚动到底部
-// watch(
-//   () => props.list,
-//   () => {
-//     nextTick(() => {
-//       scrollToBottom();
-//     });
-//   },
-//   { deep: true }
-// );
-
-// 在组件挂载后立即滚动到底部
-onMounted(() => {
-  // scrollToBottom();
-});
 </script>
 
 <style lang="scss" scoped>

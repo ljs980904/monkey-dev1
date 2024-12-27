@@ -69,6 +69,7 @@ export const EXCLUDES_TASK = {
 export const getSetUp = () => {
   const data: any = reactive({
     url: 'https://autohelper.top/api',
+    title: 'AI 助手',
     host: '',
     dialogTableVisible: true,
     htmlEle: {
