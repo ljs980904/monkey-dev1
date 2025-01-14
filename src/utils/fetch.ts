@@ -1,4 +1,4 @@
-import { GM } from '$';
+import { GM_xmlhttpRequest } from '$';
 
 /**
  *
@@ -15,8 +15,7 @@ export const request = (
   onSuccess: Function,
   onError: Function
 ) => {
-  console.log(GM);
-  GM.xmlHttpRequest({
+  GM_xmlhttpRequest({
     method: method,
     url: url,
     data: method === 'POST' ? data : null,

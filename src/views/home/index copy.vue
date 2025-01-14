@@ -3,8 +3,6 @@ import LogDialog from '../../components/dialog/index.vue';
 import { request } from '../../utils/fetch';
 import { crackFont } from '../../directives/crack-font';
 import { sleep } from '../../utils';
-import { Logger } from '../../utils/logger';
-// import { questionData } from './../../mock/mock';
 import {
   getSetUp,
   getNestedIframeDocument,
@@ -12,7 +10,7 @@ import {
   EXCLUDES_TASK,
   cleanText,
 } from './model';
-const sv = [0, 1, 2, 3, 4];
+
 const { list, addList, url, title } = getSetUp() as {
   list: any;
   addList: (obj: any) => void;
@@ -22,8 +20,6 @@ const { list, addList, url, title } = getSetUp() as {
 
 let currentPageTabs: any = []; // 当前任务章节 tab
 let nowIdx = 0; // 当前tab索引
-// 初始化日志
-const logger = new Logger(addList);
 
 /**
  * 重置
@@ -44,13 +40,13 @@ const next = async () => {
   };
   const nextButton: any = findElementByText();
   if (!nextButton || nextButton.style.display === 'none') {
-    logger.chapterTask.end(); // 任务已完成
-    dialogVisible.value = false;
+    await sleep(1000);
+    addList({ message: '任务已完成', level: 'success' });
     return;
   }
   nextButton?.onclick();
   resetVal();
-  await sleep(sv[2]);
+  await sleep(3000);
   requestAnimationFrame(init);
 };
 
@@ -84,16 +80,12 @@ const videoListener = (
   reject: (reason?: any) => void
 ) => {
   const handlers = {
-    // 播放前
     loadedmetadata: () => {
-      logger.videoTask.start();
+      const text = `视频时常--${videoElement.duration} s`;
+      addList({ message: text, level: 'warning' });
     },
-    // 播放
-    play: () => {
-      logger.videoTask.playing();
-    },
-    // 视频暂停
     pause: () => {
+      console.log(videoElement);
       // 遇到暂停时 判断是否做题 如果存在当前按钮 则出发继续按钮
       const isContinue = videoElement?.parentElement?.querySelector(
         '#videoquiz-continue'
@@ -102,21 +94,22 @@ const videoListener = (
         // 跳过题目 继续播放
         const isContinueButton = isContinue as HTMLButtonElement;
         isContinueButton?.click();
-        logger.videoTask.videoTitle(); // 跳过题目 继续播放
-        return;
-      }
-      if (!videoElement.ended) {
-        videoElement.play(); // 视频暂停时 会出现题目 答题完成之后 继续播放
+        addList({ message: '视频继续播放', level: 'warning' });
+      } else {
+        if (!videoElement.ended) {
+          videoElement.play(); // 视频暂停时 会出现题目 答题完成之后 继续播放
+        }
       }
     },
     ended: () => {
       removeEventListeners();
       resolve();
-      logger.videoTask.complete(); // 视频播放完成
+      addList({ message: '视频播放完成', level: 'warning' });
     },
-    error: (error) => {
+    error: () => {
       removeEventListeners();
-      reject(error);
+      reject('视频播放出错');
+      addList({ message: '视频播放出错', level: 'error' });
     },
   };
   // 删除监听器
@@ -125,6 +118,7 @@ const videoListener = (
       videoElement.removeEventListener(event, handler);
     });
   };
+
   // 添加监听器
   Object.entries(handlers).forEach(([event, handler]) => {
     videoElement.addEventListener(event, handler);
@@ -141,23 +135,23 @@ const videoListener = (
 const playVideo = async (iframeEle: HTMLElement) => {
   return new Promise<void>(async (resolve, reject) => {
     try {
-      await sleep(sv[3]);
+      await sleep(3000);
       const wrapIframe = iframeEle.querySelector('iframe');
-      await sleep(sv[1]);
+      await sleep(1000);
       const iframeWrapEle = (
         wrapIframe as any
       ).contentWindow?.document.querySelector('video') as HTMLVideoElement;
       if (!iframeWrapEle) {
-        resolve(); //  未找到任务点 跳过
-        logger.chapterTask.noTask();
+        addList({ message: '未找到任务点，跳过', level: 'warning' });
+        resolve();
         return;
       }
-      logger.system.detection(); // 检测任务点
-      await sleep(sv[3]);
+      addList({ message: '发现一个视频任务，即将播放', level: 'primary' });
+      await sleep(3000);
       videoListener(iframeWrapEle, resolve, reject);
     } catch (error) {
-      logger.videoTask.error(error);
-    } 
+      reject({ message: '视频播放出错', level: 'error' });
+    }
   });
 };
 
@@ -178,26 +172,25 @@ const initializeCurrentPageTabs = () => {
 // 执行各方法
 const executeFunc = async (ele) => {
   return new Promise<void>(async (resolve, reject) => {
-    try {
-      const innerText = currentPageTabs[nowIdx]?.innerText; // 不需要做题的章节
-      const ansJobIcon = ele.querySelector('.ans-job-icon')?.ariaLabel; // 当前章节 是否完成
-      // 任务是否完成
-      if (ansJobIcon?.includes(TASK_TEXTS.successTxt)) {
-        logger.chapterTask.skip();
-        return;
-      }
-      if (innerText?.includes(TASK_TEXTS.videoTxt)) {
-        await playVideo(ele); // 如果已完成 跳过
-      } else if (innerText?.includes(TASK_TEXTS.detection)) {
-        await runTest(ele);
-      } else {
-        logger.chapterTask.skip(); // 未找到任务点 跳过
-      }
-    } catch (e) {
-      reject(e);
-    } finally {
+    const innerText = currentPageTabs[nowIdx]?.innerText; // 不需要做题的章节
+    const ansJobIcon =
+      ele.querySelector('.ans-job-icon')?.ariaLabel ?? '未完成'; // 当前章节 是否完成
+    console.log('ansJobIcon---', ansJobIcon);
+
+    if (ansJobIcon == TASK_TEXTS.successTxt) {
       resolve();
+      return;
     }
+    if (innerText == TASK_TEXTS.videoTxt) {
+      await playVideo(ele); // 如果已完成 跳过
+    } else if (innerText.includes(TASK_TEXTS.detection)) {
+      addList({ message: '检测到任务点，正在解析', level: 'warning' });
+      await sleep(3000);
+      await runTest(ele);
+    } else {
+      await addList({ message: '本章没有任务点，跳过', level: 'warning' });
+    }
+    resolve();
   });
 };
 
@@ -206,11 +199,11 @@ const executeFunc = async (ele) => {
  */
 const processCurrentTab = async () => {
   try {
-    await sleep(sv[4]);
+    await sleep(4000);
     const iframeDocument = getNestedIframeDocument('iframe');
     await executeFunc(iframeDocument);
-    logger.chapterTask.complete(); // 章节结束 进入下一章节
-    await sleep(sv[2]);
+    addList({ message: '本章任务已完成，进入下个任务', level: 'success' });
+    await sleep(2000);
     if (++nowIdx < currentPageTabs.length) {
       currentPageTabs[nowIdx]?.onclick();
       processCurrentTab(); // 继续处理下一个标签页
@@ -219,7 +212,7 @@ const processCurrentTab = async () => {
       next();
     }
   } catch (error) {
-    logger.system.error(error);
+    addList({ message: '错误', level: 'error' });
   }
 };
 
@@ -255,6 +248,7 @@ const findCorrectOptionIndices = (options: any, correctAnswers: string[]) => {
  * @param data 题目和选项
  */
 const simulateRequest = async (ele, data) => {
+  console.log('data----', data);
   return new Promise<void>((resolve) => {
     const params = `题目：${data.question}，选项：${data.options}`;
     request(
@@ -263,6 +257,7 @@ const simulateRequest = async (ele, data) => {
       {},
       (response) => {
         const resData = JSON.parse(response);
+        console.log('resData-------', resData);
         const content = JSON.parse(
           resData?.output?.choices[0]?.message?.content
         );
@@ -298,35 +293,33 @@ const subEvent = () => {
 const autoAnswer = async (taskEle) => {
   const singleQues = taskEle.querySelector('.ZyBottom');
   if (!singleQues) return;
-  logger.system.detection(); // 检测任务点
+  addList({ message: '开始答题', level: 'warning' });
+
   const singleChoiceQuestions = singleQues.querySelectorAll('.singleQuesId'); // 获取当前页面的所有题目
-  logger.quizTask.start(singleChoiceQuestions.length); // 开始答题
   for (const questions of singleChoiceQuestions) {
     const question = questions.querySelector('.fontLabel').textContent; // 获取当前题目问题
     const li = questions.querySelectorAll('ul li'); // 获取当前题目选项
     const liArrs = Array.from(li);
     const options = liArrs.map((option: any) => cleanText(option.textContent));
-    await sleep(sv[1]);
+    await sleep(1000);
     // 请求发送 并将将结果直接对当前的元素进行答题
     await simulateRequest(li, {
       question: cleanText(question),
       options,
     });
   }
-  logger.quizTask.end(); // 完成答题
-
+  addList({ message: '答题已完成', level: 'success' });
   // 提交
-  // const saveEles = taskEle.querySelector('.ZY_sub.clearfix');
-  // const saveEle = saveEles?.querySelector('.btnSubmit.workBtnIndex');
-  // saveEle?.click();
-  // await sleep(2);
-  // subEvent();
-  // await sleep(2);
-  // logger.quizTask.submit(); // 完成提交
+  const saveEles = taskEle.querySelector('.ZY_sub.clearfix');
+  const saveEle = saveEles?.querySelector('.btnSubmit.workBtnIndex');
+  saveEle?.click();
+  addList({ message: '正在提交', level: 'success' });
+  await sleep(2000);
+  subEvent();
+  await sleep(2000);
+  addList({ message: '提交完成', level: 'success' });
 };
-// const sleeps = (second) => {
-//   return new Promise((resolve) => setTimeout(resolve, second * 1e3));
-// };
+
 /**
  * 章节检测/测试
  * @param ele 任务元素
@@ -335,27 +328,8 @@ const runTest = async (ele) => {
   // const iframeDocument = getNestedIframeDocument('iframe');
   // const taskDoc = iframeDocument
   //   ?.querySelector('iframe')
-  //   ?.contentWindow?.document?.querySelector('iframe')?.contentWindow;
-  // console.log('taskDoc', taskDoc.alert);
-  // // 因为只是配一个页面 当不是&mooc2=1是 则直接进入这个版本
-  // const currentUrl = window.location.href;
-  // if (!currentUrl.includes('&mooc2=1')) {
-  //   window.location.href = currentUrl + '&mooc2=1';
-  // }
-  // popDiv wid440 Marking
-  // taskDoc.alert = () => {};
-  // console.log('taskDoc', taskDoc.alert);
-  // await sleep(1);
-  // await taskDoc.btnBlueSubmit();
+  //   ?.contentWindow?.document?.querySelector('iframe')?.contentWindow?.document;
 
-  // const url2 = window.location.href;
-  // console.log(url2);
-  // alert(url2);
-  // await sleep(sv[3 / 2]);
-  // await taskDoc.submitCheckTimes(); // 确认提交
-  // taskDoc.noSubmit();
-  // btnBlueSubmit
-  // await sleep(2);
   const taskDoc = ele // 获取最终的 task 文档
     ?.querySelector('iframe')
     ?.contentWindow?.document?.querySelector('iframe')?.contentWindow?.document;
@@ -364,8 +338,42 @@ const runTest = async (ele) => {
     await autoAnswer(taskDoc); // 获取检测数据
   }
 };
+
+// 测试
+// const testRq = async (data) => {
+//   try {
+//     console.log();
+//     const params = `题目：${data.question}，选项：${data.options}`;
+
+//     request(
+//       `${url.value}/answer?topic=${params}`,
+//       'get',
+//       {},
+//       (response) => {
+//         const resData = JSON.parse(response);
+//         console.log(resData);
+//         const content =
+//           resData.correct_answer?.output?.choices[0]?.message?.content;
+//         console.log(content);
+//       },
+//       (err) => {
+//         return err;
+//       }
+//     );
+//   } catch (error) {
+//     console.log(error);
+//   }
+// };
+// const crackFonts = async () => {
+//   const iframeDocument = getNestedIframeDocument('iframe');
+//   const taskDoc = iframeDocument
+//     ?.querySelector('iframe')
+//     ?.contentWindow?.document?.querySelector('iframe')?.contentWindow?.document;
+//   await crackFont(taskDoc);
+// };
+
 /**
- * 考试-单元测试
+ * 考试
  */
 const examination = async () => {
   const completeBtn = document.querySelector('.subNav .completeBtn.fl');
@@ -373,11 +381,12 @@ const examination = async () => {
   if (completeBtn && completeBtn?.textContent == '整卷预览') {
     (completeBtn as HTMLButtonElement).click();
   }
-  await sleep(sv[2]);
+  await sleep(2000);
   crackFont(document);
-  await sleep(sv[2]);
+  await sleep(2000);
   const questionLis = document.querySelectorAll('.questionLi'); // 整卷预览 所有选项
   const questionArray = Array.from(questionLis);
+
   for (const questionLi of questionArray) {
     const question = questionLi?.querySelector('.mark_name')?.textContent; // 题目
     const stemAnswer = questionLi?.querySelector('.stem_answer'); // 选项容器
@@ -389,8 +398,7 @@ const examination = async () => {
       options,
     });
   }
-  // 延迟提交
-  logger.quizTask.delayedSubmission();
+  addList({ message: '答题结束，10分钟后或手动提交', level: 'success' });
   setInterval(async () => {
     const time = document
       .querySelector('.marking_left_280')
@@ -399,7 +407,7 @@ const examination = async () => {
     if (Number(minute) < 50) {
       const sub = document.querySelector('.sub-button.fr')?.querySelector('a');
       sub?.click();
-      await sleep(sv[2]);
+      await sleep(2000);
       const submitEle = document.querySelector('#submitConfirmPop');
       const aEle = submitEle?.querySelector('.confirm');
       (aEle as HTMLElement)?.click(); // 限时提交
@@ -413,16 +421,15 @@ const examination = async () => {
 const init = () => {
   const topTxt = document.querySelector('.subNav.top-subNav')?.ariaLabel;
   if (topTxt?.includes('考试')) {
-    examination(); // 单元测试
+    examination();
   } else {
     initTask(); // 章节检测
   }
 };
-
 onMounted(async () => {
-  logger.system.init();
+  addList({ message: '脚本加载成功', level: 'warning' });
   await nextTick();
-  // init();
+  init();
 });
 const dialogVisible = ref(true);
 </script>
@@ -433,10 +440,9 @@ const dialogVisible = ref(true);
     :title="title"
     :statusInfo="{ text: '正在执行', type: 'info' }"
   >
-    <button @click="runTest">测试</button>
+    <!-- <button @click="runTest">测试</button> -->
     <!-- <button @click="runTests">测试</button> -->
-    <!-- <button @click="examination">考试</button> -->
-    <!-- <button @click="testLogs">考试</button> -->
+    <button @click="examination">考试</button>
   </LogDialog>
 </template>
 

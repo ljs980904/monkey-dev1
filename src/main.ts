@@ -16,20 +16,17 @@ import Directives from './directives/index';
 const pinia = createPinia();
 import App from './App.vue';
 
-// const init = () => {
-//   const origin = location.origin; // 当前域名
-// };
-// init();
 const initApp = () => {
   const app = createApp(App);
   app.use(ElementPlus, { locale: zhCn });
   app.use(pinia);
   app.use(Directives);
+
   app.mount(
     (() => {
       const appEle = document.createElement('div');
-      appEle.style.width = '100%';
-      appEle.style.height = '100vh';
+      // appEle.style.width = '100%';
+      // appEle.style.height = '100vh';
 
       document.body.append(appEle);
       return appEle;

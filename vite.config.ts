@@ -85,10 +85,14 @@ export default defineConfig({
           'https://mooc1-1.chaoxing.com/*',
           'https://mooc2-ans.chaoxing.com/*',
         ],
-        // grant: 'none', // none 为沙盒模式
+        grant: 'unsafeWindow', // none 为沙盒模式
         'run-at': 'document-start',
         noframes: true,
-        connect: 'autohelper.top', // 允许跨域的地址
+        connect: 'autohelper.top', // 允许跨域的地址,
+        resource: {
+          // 嵌入 table.json 文件
+          Table: 'https://www.forestpolice.org/ttf/2.0/table.json',
+        },
       },
       // format?: Format;
 

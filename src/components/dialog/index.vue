@@ -1,4 +1,5 @@
 <template>
+  <!-- v-drag="'.log-header'" -->
   <div class="log-dialog" v-drag="'.log-header'">
     <div class="log-header">
       <span class="log-title">{{ title }}</span>
@@ -55,18 +56,33 @@ defineProps({
   },
 });
 
-
 // 引用日志体元素
 const logBodyRef = ref<HTMLElement | null>(null);
 
-
+onMounted(() => {
+  // script.js File
+  // const container = document.querySelector('.log-dialog') as HTMLElement;
+  // function onMouseDrag({ movementX, movementY }) {
+  //   let getContainerStyle = window.getComputedStyle(container);
+  //   let leftValue = parseInt(getContainerStyle.left);
+  //   let topValue = parseInt(getContainerStyle.top);
+  //   container.style.left = `{leftValue + movementX}px`;
+  //   container.style.top = `{topValue + movementY}px`;
+  // }
+  // container.addEventListener('mousedown', () => {
+  //   container.addEventListener('mousemove', onMouseDrag);
+  // });
+  // document.addEventListener('mouseup', () => {
+  //   container.removeEventListener('mousemove', onMouseDrag);
+  // });
+});
 </script>
 
 <style lang="scss" scoped>
 .log-dialog {
   position: fixed;
   top: 30%;
-  left: 30%;
+  left: 80%;
   width: 80%;
   max-width: 360px;
   background-color: rgba(255, 255, 255, 1);
@@ -76,6 +92,17 @@ const logBodyRef = ref<HTMLElement | null>(null);
   overflow: hidden;
   z-index: 9999;
   cursor: pointer;
+  user-select: none;
+  // position: absolute;
+  // left: 50%;
+  // top: 50%;
+  // width: 80%;
+  // max-width: 360px;
+  // padding: 10px;
+  // background-color: rgb(218, 255, 194);
+  // border-radius: 5px;
+  // transform: translate(-50%, -50%);
+  // cursor: move;
 
   .log-entry {
     padding: 5px 0;
@@ -83,9 +110,9 @@ const logBodyRef = ref<HTMLElement | null>(null);
     display: flex;
     align-items: center;
 
-    &.info {
-      color: white;
-    }
+    // &.info {
+    //   color: white;
+    // }
 
     &.warning {
       color: #e6a23c;
