@@ -517,6 +517,7 @@ const useCxChapterLogic = () => {
       logStore.addLog(`正在尝试播放${mediaType}，请稍等5s`, 'primary');
       let isExecuted = false;
       logStore.addLog('播放成功', 'success');
+
       const intervalId = setInterval(async () => {
         const mediaElement =
           iframeDocument.documentElement.querySelector(mediaType);
