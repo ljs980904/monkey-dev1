@@ -1,517 +1,1001 @@
-<script setup lang="ts">
-import LogDialog from '../../components/dialog/index.vue';
-import { request } from '../../utils/fetch';
-import { crackFont } from '../../directives/crack-font';
+<script setup>
+import useUserInfoStore from '../../stores/user'; //引入仓库
+import DraggableDialog from '../../components/draggable-dialog.vue';
+import { crackFont } from '../../utils/crack-font';
 import { sleep } from '../../utils';
-import { Logger } from '../../utils/logger';
-// import { questionData } from './../../mock/mock';
-import {
-  getSetUp,
-  getNestedIframeDocument,
-  TASK_TEXTS,
-  EXCLUDES_TASK,
-  cleanText,
-} from './model';
-const sv = [0, 1, 2, 3, 4];
-const { list, addList, url, title } = getSetUp() as {
-  list: any;
-  addList: (obj: any) => void;
-  url: any;
-  title: string;
+import { simulateRequest } from './model';
+
+const userInfoStore = useUserInfoStore();
+// 配置工具
+const configStore = reactive({
+  isShow: true,
+  platformParams: {
+    cx: {
+      autoNext: true, // 自动切换
+      answeringMode: false, // 只答题
+    },
+  },
+  // 入参
+  otherParams: {
+    timeInterval: 3, // 切换、答题间隔，单位秒
+    rate: 85, // 正确率达到多少自动提交
+    name: '其他参数',
+  },
+  rate: 80, // 完成率
+  currentPageTabs: [], // 当前任务章节 tab
+  nowIdx: 0, // 当前tab索引
+  title: 'AT助手',
+  logData: [], // 日志
+  isfalse: false,
+  sizes: 'small',
+  activeTab: 'log',
+  tabBar: [
+    {
+      value: 'log',
+      label: '首页',
+    },
+    {
+      value: 'keys',
+      label: '答题',
+    },
+    {
+      value: 'guide',
+      label: '指南',
+    },
+    {
+      value: 'settings',
+      label: '设置',
+    },
+  ],
+  assistantName: 'AI 助手',
+  avatarSrc:
+    'https://public.readdy.ai/ai/img_res/2d58579252345596c10002ce85d4f6f8.jpg',
+  workUrl: window.location.href,
+  key: userInfoStore.key, // keys
+  validatedKeys: false, // 是否验证
+  url: 'https://autohelper.top/prod-api/question/dpQuestion',
+  // url: 'http://localhost:8080/question/dpQuestion',
+});
+const inputNumberAttr = {
+  step: 1,
+  'step-strictly': true,
+  size: 'small',
 };
 
-let currentPageTabs: any = []; // 当前任务章节 tab
-let nowIdx = 0; // 当前tab索引
-// 初始化日志
-const logger = new Logger(addList);
-
-/**
- * 重置
- */
-const resetVal = () => {
-  currentPageTabs = [];
-  nowIdx = 0;
+const __defProp = Object.defineProperty;
+const __defNormalProp = (obj, key, value) =>
+  key in obj
+    ? __defProp(obj, key, {
+        enumerable: true,
+        configurable: true,
+        writable: true,
+        value,
+      })
+    : (obj[key] = value);
+const __publicField = (obj, key, value) => {
+  __defNormalProp(obj, typeof key !== 'symbol' ? key + '' : key, value);
+  return value;
 };
 
-/**
- * 下一步
- */
-const next = async () => {
-  const findElementByText = () => {
-    return Array.from(document.querySelectorAll('.prev_next')).find(
-      (element: any) => element?.textContent?.trim() === TASK_TEXTS.nextTxt
-    );
-  };
-  const nextButton: any = findElementByText();
-  if (!nextButton || nextButton.style.display === 'none') {
-    logger.chapterTask.end(); // 任务已完成
-    dialogVisible.value = false;
-    return;
-  }
-  nextButton?.onclick();
-  resetVal();
-  await sleep(sv[2]);
-  requestAnimationFrame(init);
+const _unsafeWindow = (() =>
+  typeof unsafeWindow != 'undefined' ? unsafeWindow : void 0)();
+
+const addLog = (obj) => {
+  configStore.logData.unshift({
+    time: new Date().toLocaleTimeString(),
+    ...obj,
+  });
 };
 
-/**
- *  判断页面是否加载完成
- */
-const isPageLoaded = () => {
+// 工具函数：等待 iframe 加载完成
+
+const waitIframeLoad = async (iframe) => {
   return new Promise((resolve) => {
-    if (document.readyState === 'complete') {
-      resolve(true);
-    } else {
-      const intervalId = setInterval(() => {
-        if (document.readyState === 'complete') {
-          clearInterval(intervalId);
-          resolve(true);
-        }
-      }, 500);
-    }
+    const intervalId = setInterval(async () => {
+      if (iframe.contentDocument?.readyState === 'complete') {
+        resolve();
+        clearInterval(intervalId);
+      }
+    }, 500);
   });
 };
-
-/**
- * 监听视频事件
- * @param videoElement  视频元素
- * @param resolve  成功
- * @param reject  失败
- */
-const videoListener = (
-  videoElement: HTMLVideoElement,
-  resolve: () => void,
-  reject: (reason?: any) => void
-) => {
-  const handlers = {
-    // 播放前
-    loadedmetadata: () => {
-      logger.videoTask.start();
-    },
-    // 播放
-    play: () => {
-      logger.videoTask.playing();
-    },
-    // 视频暂停
-    pause: () => {
-      // 遇到暂停时 判断是否做题 如果存在当前按钮 则出发继续按钮
-      const isContinue = videoElement?.parentElement?.querySelector(
-        '#videoquiz-continue'
-      );
-      if (isContinue) {
-        // 跳过题目 继续播放
-        const isContinueButton = isContinue as HTMLButtonElement;
-        isContinueButton?.click();
-        logger.videoTask.videoTitle(); // 跳过题目 继续播放
-        return;
-      }
-      if (!videoElement.ended) {
-        videoElement.play(); // 视频暂停时 会出现题目 答题完成之后 继续播放
-      }
-    },
-    ended: () => {
-      removeEventListeners();
-      resolve();
-      logger.videoTask.complete(); // 视频播放完成
-    },
-    error: (error) => {
-      removeEventListeners();
-      reject(error);
-    },
-  };
-  // 删除监听器
-  const removeEventListeners = () => {
-    Object.entries(handlers).forEach(([event, handler]) => {
-      videoElement.removeEventListener(event, handler);
+// 处理单个 iframe
+const processIframe = async (iframe) => {
+  const iframeSrc = iframe.src;
+  console.log('iframeSrc=========', iframeSrc);
+  const iframeDocument = iframe.contentDocument;
+  const iframeWindow = iframe.contentWindow;
+  // 检查 iframe 是否有效
+  if (!iframeDocument || !iframeWindow) {
+    return Promise.resolve();
+  }
+  // 跳过 JavaScript iframe
+  if (iframeSrc.includes('javascript:')) {
+    return Promise.resolve();
+  }
+  // 等待 iframe 加载完成
+  await waitIframeLoad(iframe);
+  // 判断任务点是否已完成
+  const parentClass = iframe.parentElement?.className || '';
+  if (parentClass.includes('ans-job-finished')) {
+    addLog({
+      value: `发现一个已完成任务点`,
+      type: 'success',
     });
-  };
-  // 添加监听器
-  Object.entries(handlers).forEach(([event, handler]) => {
-    videoElement.addEventListener(event, handler);
-  });
-
-  videoElement.muted = true;
-  videoElement.play();
-};
-
-/**
- *  播放视频
- * @param iframeEle 任务元素
- */
-const playVideo = async (iframeEle: HTMLElement) => {
-  return new Promise<void>(async (resolve, reject) => {
-    try {
-      await sleep(sv[3]);
-      const wrapIframe = iframeEle.querySelector('iframe');
-      await sleep(sv[1]);
-      const iframeWrapEle = (
-        wrapIframe as any
-      ).contentWindow?.document.querySelector('video') as HTMLVideoElement;
-      if (!iframeWrapEle) {
-        resolve(); //  未找到任务点 跳过
-        logger.chapterTask.noTask();
-        return;
-      }
-      logger.system.detection(); // 检测任务点
-      await sleep(sv[3]);
-      videoListener(iframeWrapEle, resolve, reject);
-    } catch (error) {
-      logger.videoTask.error(error);
-    } 
-  });
-};
-
-// 初始化当前页面的标签页
-const initializeCurrentPageTabs = () => {
-  const prevTitle = document.querySelector('.prev_title');
-  // 排除不需要进入的标题
-  if (EXCLUDES_TASK.tasks.includes(prevTitle?.innerHTML as string)) {
-    return;
+    return Promise.resolve();
   }
-  currentPageTabs = Array.from(document.querySelectorAll('.prev_ul li')); // 获取当前页面的所有标签
-  // 找到当前激活的标签索引
-  nowIdx = currentPageTabs.findIndex(
-    (element) => element.className === 'active'
-  );
+  // 根据 iframe 的 src 处理任务点
+  if (iframeSrc.includes('api/work')) {
+    // 作业
+    return await processWork(iframe, iframeDocument, iframeWindow);
+  }
+  if (configStore.platformParams.cx.answeringMode) {
+    addLog({
+      value: `只答题模式已开，可在设置里调整`,
+      type: 'primary',
+    });
+  } else {
+    const ansJobIcon = iframe.parentElement
+      ? iframe.parentElement.querySelector('.ans-job-icon')
+      : '';
+    if (ansJobIcon) {
+      if (iframeSrc.includes('video')) {
+        return processMedia('video', iframeDocument);
+      } else if (iframeSrc.includes('audio')) {
+        return processMedia('audio', iframeDocument);
+      } else if (
+        ['ppt', 'doc', 'pptx', 'docx', 'pdf'].some((type) =>
+          iframeSrc.includes('modules/' + type)
+        )
+      ) {
+        return processPpt(iframeWindow);
+      } else if (
+        ['innerbook'].some((type) => iframeSrc.includes('modules/' + type))
+      ) {
+        return processBook(iframeWindow);
+      }
+    }
+  }
+  return Promise.resolve();
+};
+// 处理任务点：视频/音频
+const processMedia = async (mediaType, iframeDocument) => {
+  return new Promise(async (resolve) => {
+    addLog({
+      value: `发现一个${mediaType}，正在解析`,
+      type: 'warning',
+    });
+    addLog({
+      value: `正在尝试播放${mediaType}，请稍等`,
+      type: 'primary',
+    });
+    await sleep(1);
+    let isExecuted = false;
+    addLog({
+      value: `播放成功`,
+      type: 'success',
+    });
+    const intervalId = setInterval(async () => {
+      const mediaElement =
+        iframeDocument.documentElement.querySelector(mediaType);
+      if (mediaElement && !isExecuted) {
+        await mediaElement.pause();
+        mediaElement.muted = true;
+        await mediaElement.play();
+        const listener = async () => {
+          await sleep(3);
+          await mediaElement.play();
+        };
+        mediaElement.addEventListener('pause', listener);
+        mediaElement.addEventListener('ended', () => {
+          addLog({
+            value: `${mediaType}已播放完成`,
+            type: 'success',
+          });
+          mediaElement.removeEventListener('pause', listener);
+          resolve();
+        });
+        isExecuted = true;
+        clearInterval(intervalId);
+      }
+    }, 2500);
+  });
 };
 
-// 执行各方法
-const executeFunc = async (ele) => {
-  return new Promise<void>(async (resolve, reject) => {
-    try {
-      const innerText = currentPageTabs[nowIdx]?.innerText; // 不需要做题的章节
-      const ansJobIcon = ele.querySelector('.ans-job-icon')?.ariaLabel; // 当前章节 是否完成
-      // 任务是否完成
-      if (ansJobIcon?.includes(TASK_TEXTS.successTxt)) {
-        logger.chapterTask.skip();
-        return;
+// 处理任务点：PPT/文档
+const processPpt = async (iframeWindow) => {
+  // addLog({
+  //   value: `处理 PPT/文档任务点`,
+  //   type: 'info',
+  // });
+  // const pptWindow =
+  //   iframeWindow.document.querySelector('#panView').contentWindow;
+  // await pptWindow.scrollTo({
+  //   top: pptWindow.document.body.scrollHeight,
+  //   behavior: 'smooth',
+  // });
+  // addLog({
+  //   value: `发现一个PPT，正在解析`,
+  //   type: 'warning',
+  // });
+  // noRunFunc();
+  return Promise.resolve();
+};
+
+// 处理任务点：书籍
+const processBook = async (iframeWindow) => {
+  addLog({
+    value: `发现一个电子书，正在解析`,
+    type: 'warning',
+  });
+  _unsafeWindow?.top?.onchangepage(iframeWindow.getFrameAttr('end'));
+  addLog({
+    value: `阅读完成`,
+    type: 'success',
+  });
+  return Promise.resolve();
+};
+
+class BaseQuestionHandler {
+  constructor() {
+    __publicField(this, '_document', document);
+    __publicField(this, '_window', _unsafeWindow);
+    // __publicField(this, 'addLog', undefined);
+    // __publicField(this, 'addQuestion', undefined);
+    __publicField(this, 'questions', []);
+    __publicField(this, 'correctNum', 0);
+    __publicField(this, 'parseHtml', () => {
+      throw new Error('请使用继承类的重写方法');
+    });
+    __publicField(this, 'fillQuestion', (question) => {
+      throw new Error('请使用继承类的重写方法');
+    });
+    __publicField(this, 'questionType', {
+      单选题: '0',
+      A1型题: '0',
+      多选题: '1',
+      X型题: '1',
+      填空题: '2',
+      判断题: '3',
+      简答题: '4',
+      名词解释: '5',
+      论述题: '6',
+      计算题: '7',
+    });
+    __publicField(this, 'removeHtml', (html) => {
+      if (html == null) {
+        return '';
       }
-      if (innerText?.includes(TASK_TEXTS.videoTxt)) {
-        await playVideo(ele); // 如果已完成 跳过
-      } else if (innerText?.includes(TASK_TEXTS.detection)) {
-        await runTest(ele);
+
+      return html
+        .replace(/<((?!img|sub|sup|br)[^>]+)>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/\s+/g, ' ')
+        .replace(/<br\s*\/?>/g, '\n')
+        .replace(/<img.*?src="(.*?)".*?>/g, '<img src="$1"/>')
+        .trim();
+    });
+    __publicField(this, 'clean', (str) => {
+      return str.replace(/^【.*?】\s*/, '').replace(/\s*（\d+\.\d+分）$/, '');
+    });
+  }
+}
+
+class CxQuestionHandler extends BaseQuestionHandler {
+  constructor(type, iframe) {
+    super();
+    __publicField(this, 'type');
+    __publicField(this, 'init', async () => {
+      this.questions = [];
+      this.parseHtml();
+      if (this.questions.length) {
+        addLog({
+          value: `成功解析到${this.questions.length}个题目`,
+          type: 'primary',
+        });
+        for (const [index, question] of this.questions.entries()) {
+          console.log('question===========', question);
+
+          const resp = await simulateRequest(
+            configStore.url,
+            question,
+            _unsafeWindow,
+            configStore.key
+          );
+
+          if (resp?.code === 200) {
+            const { answers, number } = resp.data;
+            question.answer = answers;
+            this.fillQuestion(question);
+            addLog({
+              value: `第${index + 1}道题搜索成功，剩余次数：${number}`,
+              type: 'success',
+            });
+            this.correctNum += 1;
+          } else {
+            addLog({
+              value: `第${index + 1}道题搜索失败，${resp.msg}`,
+              type: 'error',
+            });
+            question.answer[0] = '请求失败，请稍后再试';
+          }
+          if (!this._document) {
+            let _a = this._document;
+            await _a.querySelectorAll('.switch-btn-box > button')[1].click();
+          }
+          await sleep(2);
+        }
       } else {
-        logger.chapterTask.skip(); // 未找到任务点 跳过
+        addLog({
+          value: `未解析到题目，请进入正确页面`,
+          type: 'danger',
+        });
       }
-    } catch (e) {
-      reject(e);
-    } finally {
-      resolve();
-    }
-  });
-};
+      return Promise.resolve((this.correctNum / this.questions.length) * 100);
+    });
+    __publicField(this, 'parseHtml', () => {
+      if (!this._document) return [];
+      if (['zj'].includes(this.type)) {
+        const questionElements = this._document.querySelectorAll('.TiMu');
+        this.addQuestions(questionElements);
+      } else if (['zy', 'ks'].includes(this.type)) {
+        const questionElements = this._document.querySelectorAll('.questionLi');
+        this.addQuestions(questionElements);
+      }
+    });
+    __publicField(this, 'fillQuestion', (question) => {
+      var _a, _b;
+      // 0：单选题，1：多选题，3：判断题
+      if (!this._window) return;
+      if (question.type === '0' || question.type === '1') {
+        question.answer.forEach((answer) => {
+          for (const key in question.options) {
+            if (key === this.removeHtml(answer)) {
+              if (['zj', 'zy'].includes(this.type)) {
+                const optionElement = question.options[key];
+                if (optionElement.getAttribute('aria-checked') === 'true') {
+                  return;
+                }
 
-/**
- *  处理当前标签页
- */
-const processCurrentTab = async () => {
-  try {
-    await sleep(sv[4]);
-    const iframeDocument = getNestedIframeDocument('iframe');
-    await executeFunc(iframeDocument);
-    logger.chapterTask.complete(); // 章节结束 进入下一章节
-    await sleep(sv[2]);
-    if (++nowIdx < currentPageTabs.length) {
-      currentPageTabs[nowIdx]?.onclick();
-      processCurrentTab(); // 继续处理下一个标签页
-    } else {
-      await isPageLoaded();
-      next();
-    }
-  } catch (error) {
-    logger.system.error(error);
-  }
-};
+                optionElement == null ? void 0 : optionElement.click();
+              } else if (['ks'].includes(this.type)) {
+                console.log('key');
 
-/**
- *  初始化任务
- */
-const initTask = () => {
-  initializeCurrentPageTabs();
-  if (currentPageTabs.length) {
-    processCurrentTab();
-  }
-};
+                const optionElement = question.options[key];
+                console.log(optionElement);
+                if (
+                  optionElement.querySelector('.check_answer') ||
+                  optionElement.querySelector('.check_answer_dx')
+                ) {
+                  return;
+                }
 
-/**
- *  找出正确答案所在的索引
- * @param options  选项
- * @param correctAnswers  答案
- */
-const findCorrectOptionIndices = (options: any, correctAnswers: string[]) => {
-  let correctIndices: any = [];
-  for (let answer of correctAnswers) {
-    let index = options.findIndex((option) => option.startsWith(answer));
-    if (index !== -1) {
-      correctIndices.push(index as number);
-    }
-  }
-  return correctIndices;
-};
-
-/**
- * 发送请求
- * @param ele 选项元素
- * @param data 题目和选项
- */
-const simulateRequest = async (ele, data) => {
-  return new Promise<void>((resolve) => {
-    const params = `题目：${data.question}，选项：${data.options}`;
-    request(
-      `${url.value}/answer?topic=${params}`,
-      'get',
-      {},
-      (response) => {
-        const resData = JSON.parse(response);
-        const content = JSON.parse(
-          resData?.output?.choices[0]?.message?.content
-        );
-        findCorrectOptionIndices(data.options, content)?.forEach((i) => {
-          const checkEle = ele[i];
-          if (!checkEle.ariaChecked) {
-            checkEle.onclick();
+                optionElement?.click();
+              }
+            }
           }
         });
-        resolve();
-      },
-      (err) => {
-        console.log(err);
+      } else if (question.type === '2') {
+        const textareaElements = question.element.querySelectorAll('textarea');
+        if (textareaElements.length === 0) return;
+        textareaElements.forEach((textareaElement, index) => {
+          try {
+            const ueditor = this._window.UE.getEditor(textareaElement.name);
+            ueditor.setContent(question.answer[index]);
+          } catch (e) {
+            textareaElement.value = '';
+          }
+        });
+      } else if (question.type === '3') {
+        let answer = 'true';
+        if (
+          question.answer[0].match(/(^|,)(正确|是|对|√|T|ri|right|true)(,|$)/)
+        ) {
+          answer = 'true';
+        } else if (
+          question.answer[0]
+            .toString()
+            .match(/(^|,)(错误|否|错|×|F|wr|wrong|false)(,|$)/)
+        ) {
+          answer = 'false';
+        }
+        const trueOrFalse = {
+          true: '对',
+          false: '错',
+        };
+        for (const key in question.options) {
+          if (['zj', 'zy'].includes(this.type)) {
+            if (
+              (_a = question.options[key].getAttribute('aria-label')) == null
+                ? void 0
+                : _a.includes(`${trueOrFalse[answer]}选择`)
+            ) {
+              if (question.options[key].getAttribute('aria-checked') === 'true')
+                return;
+              (_b = question.options[key]) == null ? void 0 : _b.click();
+            }
+          } else if (['ks'].includes(this.type)) {
+            const optionElement = question.options[key].querySelector(
+              `span[data='${answer}']`
+            );
+            if (
+              optionElement == null
+                ? void 0
+                : optionElement.querySelector('.check_answer')
+            )
+              return;
+            optionElement == null ? void 0 : optionElement.click();
+          }
+        }
+      } else if (question.type === '4' || question.type === '6') {
+        const textareaElement = question.element.querySelector('textarea');
+        if (!textareaElement) return;
+        const ueditor = this._window.UE.getEditor(textareaElement.name);
+        ueditor.setContent(question.answer[0]);
+      } else;
+    });
+    this.type = type;
+    if (iframe) {
+      this._document = iframe.contentDocument;
+      this._window = iframe.contentWindow;
+    }
+  }
+  extractOptions(optionElements, optionSelector) {
+    const optionsObject = {};
+    const optionTexts = [];
+    optionElements.forEach((optionElement) => {
+      var _a;
+      const optionTextContent = this.removeHtml(
+        ((_a = optionElement.querySelector(optionSelector)) == null
+          ? void 0
+          : _a.innerHTML) || ''
+      );
+      optionsObject[optionTextContent] = optionElement;
+      optionTexts.push(optionTextContent);
+    });
+    return [optionsObject, optionTexts];
+  }
+  addQuestions(questionElements) {
+    questionElements.forEach((questionElement) => {
+      var _a, _b, _c, _d;
+      let questionTitle = '';
+      let questionTypeText = '';
+      let optionElements;
+      let optionsObject = {};
+      let optionTexts = [];
+      if (['zy', 'ks'].includes(this.type)) {
+        const titleElement =
+          ((_a =
+            questionElement == null
+              ? void 0
+              : questionElement.querySelector('h3')) == null
+            ? void 0
+            : _a.innerHTML) || '';
+        const colorShallowElement =
+          ((_b = questionElement.querySelector('.colorShallow')) == null
+            ? void 0
+            : _b.outerHTML) || '';
+        if (['zy'].includes(this.type)) {
+          questionTypeText =
+            (questionElement == null
+              ? void 0
+              : questionElement.getAttribute('typename')) || '';
+        } else if (['ks'].includes(this.type)) {
+          questionTypeText =
+            this.removeHtml(colorShallowElement).slice(1, 4) || '';
+        }
+        questionTitle = this.removeHtml(
+          titleElement.split(colorShallowElement || '')[1] || ''
+        );
+        optionElements = questionElement.querySelectorAll('.answerBg');
+        [optionsObject, optionTexts] = this.extractOptions(
+          optionElements,
+          '.answer_p'
+        );
+      } else if (['zj'].includes(this.type)) {
+        questionTitle = this.removeHtml(
+          ((_c = questionElement.querySelector('.fontLabel')) == null
+            ? void 0
+            : _c.innerHTML) || ''
+        );
+        questionTypeText = this.removeHtml(
+          ((_d = questionElement.querySelector('.newZy_TItle')) == null
+            ? void 0
+            : _d.innerHTML) || ''
+        );
+        optionElements = questionElement.querySelectorAll(
+          '[class*="before-after"]'
+        );
+        [optionsObject, optionTexts] = this.extractOptions(
+          optionElements,
+          '.fl.after'
+        );
       }
-    );
+      this.questions.push({
+        element: questionElement,
+        type:
+          this.questionType[
+            questionTypeText.replace('【', '').replace('】', '')
+          ] || '999',
+        title: this.clean(questionTitle),
+        optionsText: optionTexts,
+        options: optionsObject,
+        answer: [],
+        workType: this.type,
+        refer: this._window?.location?.href,
+      });
+    });
+  }
+}
+
+// 处理任务点：作业
+const processWork = async (iframe, iframeDocument, iframeWindow) => {
+  addLog({
+    value: `处理作业任务点`,
+    type: 'info',
+  });
+  addLog({
+    value: `发现一个作业，正在解析`,
+    type: 'warning',
+  });
+  return new Promise(async (resolve) => {
+    if (!iframeDocument) return resolve();
+    if (
+      iframeDocument.documentElement.innerText.includes('已完成') ||
+      iframeDocument.documentElement.innerText.includes('待批阅')
+    ) {
+      addLog({
+        value: `作业已经完成，跳过`,
+        type: 'success',
+      });
+
+      return resolve();
+    }
+    crackFont(iframeDocument); // 解密
+    addLog({
+      value: `题目列表获取成功`,
+      type: 'primary',
+    });
+    await sleep(2);
+    const correctRate = await new CxQuestionHandler('zj', iframe)?.init(); // 答题
+    if (configStore.platformParams.cx.autoNext) {
+      addLog({
+        value: `自动提交已开启，尝试提交`,
+        type: 'primary',
+      });
+
+      if (correctRate < configStore.otherParams.rate) {
+        addLog({
+          value: `正确率小于${configStore.otherParams.rate}%，暂存`,
+          type: 'danger',
+        });
+
+        await iframeWindow.noSubmit();
+      } else {
+        addLog({
+          value: `正确率大于${configStore.otherParams.rate}%，提交`,
+          type: 'success',
+        });
+        await iframeWindow.btnBlueSubmit();
+        await sleep(configStore.otherParams.timeInterval / 2);
+        await iframeWindow.submitCheckTimes();
+        addLog({
+          value: `提交成功`,
+          type: 'success',
+        });
+      }
+    } else {
+      addLog({
+        value: `未开启自动提交，暂存`,
+        type: 'primary',
+      });
+      await iframeWindow.noSubmit();
+    }
+    addLog({
+      value: `作业已完成`,
+      type: 'success',
+    });
+
+    return resolve();
   });
 };
 
-/**
- * 保存后的确认提示弹窗
- */
-const subEvent = () => {
-  const maskDivEle = document.querySelector('.maskDiv');
-  if (maskDivEle) {
-    const popok = maskDivEle.querySelector('#popok') as HTMLElement; // 添加类型断言
-    popok?.click();
-  }
-};
-/**
- * 自动答题
- * @param taskEle 任务元素
- */
-const autoAnswer = async (taskEle) => {
-  const singleQues = taskEle.querySelector('.ZyBottom');
-  if (!singleQues) return;
-  logger.system.detection(); // 检测任务点
-  const singleChoiceQuestions = singleQues.querySelectorAll('.singleQuesId'); // 获取当前页面的所有题目
-  logger.quizTask.start(singleChoiceQuestions.length); // 开始答题
-  for (const questions of singleChoiceQuestions) {
-    const question = questions.querySelector('.fontLabel').textContent; // 获取当前题目问题
-    const li = questions.querySelectorAll('ul li'); // 获取当前题目选项
-    const liArrs = Array.from(li);
-    const options = liArrs.map((option: any) => cleanText(option.textContent));
-    await sleep(sv[1]);
-    // 请求发送 并将将结果直接对当前的元素进行答题
-    await simulateRequest(li, {
-      question: cleanText(question),
-      options,
+// 工具函数：递归获取所有嵌套 iframe
+const getAllNestedIframes = (documentElement) => {
+  const iframes = [];
+  const scan = (doc) => {
+    const frames = doc.querySelectorAll('iframe');
+    frames.forEach((iframe) => {
+      try {
+        iframes.push(iframe);
+        if (iframe.contentDocument) {
+          scan(iframe.contentDocument);
+        }
+      } catch (e) {
+        console.warn('无法访问跨域 iframe:', iframe.src);
+      }
     });
-  }
-  logger.quizTask.end(); // 完成答题
-
-  // 提交
-  // const saveEles = taskEle.querySelector('.ZY_sub.clearfix');
-  // const saveEle = saveEles?.querySelector('.btnSubmit.workBtnIndex');
-  // saveEle?.click();
-  // await sleep(2);
-  // subEvent();
-  // await sleep(2);
-  // logger.quizTask.submit(); // 完成提交
+  };
+  scan(documentElement);
+  return iframes;
 };
-// const sleeps = (second) => {
-//   return new Promise((resolve) => setTimeout(resolve, second * 1e3));
-// };
-/**
- * 章节检测/测试
- * @param ele 任务元素
- */
-const runTest = async (ele) => {
-  // const iframeDocument = getNestedIframeDocument('iframe');
-  // const taskDoc = iframeDocument
-  //   ?.querySelector('iframe')
-  //   ?.contentWindow?.document?.querySelector('iframe')?.contentWindow;
-  // console.log('taskDoc', taskDoc.alert);
-  // // 因为只是配一个页面 当不是&mooc2=1是 则直接进入这个版本
-  // const currentUrl = window.location.href;
-  // if (!currentUrl.includes('&mooc2=1')) {
-  //   window.location.href = currentUrl + '&mooc2=1';
-  // }
-  // popDiv wid440 Marking
-  // taskDoc.alert = () => {};
-  // console.log('taskDoc', taskDoc.alert);
-  // await sleep(1);
-  // await taskDoc.btnBlueSubmit();
 
-  // const url2 = window.location.href;
-  // console.log(url2);
-  // alert(url2);
-  // await sleep(sv[3 / 2]);
-  // await taskDoc.submitCheckTimes(); // 确认提交
-  // taskDoc.noSubmit();
-  // btnBlueSubmit
-  // await sleep(2);
-  const taskDoc = ele // 获取最终的 task 文档
-    ?.querySelector('iframe')
-    ?.contentWindow?.document?.querySelector('iframe')?.contentWindow?.document;
-  if (taskDoc) {
-    await crackFont(taskDoc); // 解密
-    await autoAnswer(taskDoc); // 获取检测数据
-  }
-};
-/**
- * 考试-单元测试
- */
-const examination = async () => {
-  const completeBtn = document.querySelector('.subNav .completeBtn.fl');
+// 主函数：遍历并处理所有 iframe
+const watchIframe = (documentElement) => {
+  const iframes = getAllNestedIframes(documentElement);
+  // 按顺序处理每个 iframe
+  iframes
+    .reduce((promiseChain, iframe) => {
+      return promiseChain.then(() => processIframe(iframe));
+    }, Promise.resolve())
+    .then(async () => {
+      addLog({
+        value: `本页任务点已全部完成，正前往下一章节`,
+        type: 'success',
+      });
+      await sleep(2);
 
-  if (completeBtn && completeBtn?.textContent == '整卷预览') {
-    (completeBtn as HTMLButtonElement).click();
-  }
-  await sleep(sv[2]);
-  crackFont(document);
-  await sleep(sv[2]);
-  const questionLis = document.querySelectorAll('.questionLi'); // 整卷预览 所有选项
-  const questionArray = Array.from(questionLis);
-  for (const questionLi of questionArray) {
-    const question = questionLi?.querySelector('.mark_name')?.textContent; // 题目
-    const stemAnswer = questionLi?.querySelector('.stem_answer'); // 选项容器
-    const answerBgs = stemAnswer?.querySelectorAll('.answerBg'); // 所有选项
-    const answer = Array.from(answerBgs as ArrayLike<Element>);
-    const options = answer.map((option: any) => cleanText(option.textContent));
-    await simulateRequest(answerBgs, {
-      question: cleanText(question ?? null),
-      options,
+      // 检查是否需要跳转到下一章节
+      if (configStore.platformParams.cx.autoNext) {
+        const nextBtn = documentElement.querySelector('#prevNextFocusNext');
+        if (!nextBtn || nextBtn.style.display === 'none') {
+          addLog({
+            value: `已经到达最后一章节，无法跳转`,
+            type: 'danger',
+          });
+        } else {
+          await sleep(2);
+          document
+            ?.querySelector('.jb_btn.jb_btn_92.fr.fs14.nextChapter')
+            ?.click();
+        }
+      } else {
+        addLog({
+          value: `已经关闭自动下一章节，在设置里可更改`,
+          type: 'danger',
+        });
+      }
     });
+};
+
+const processIframeTask = () => {
+  const documentElement = document.documentElement;
+  const iframe = documentElement.querySelector('iframe');
+  if (!iframe) {
+    console.warn('No iframe found.');
+    return;
   }
-  // 延迟提交
-  logger.quizTask.delayedSubmission();
-  setInterval(async () => {
-    const time = document
-      .querySelector('.marking_left_280')
-      ?.querySelector('#timer')?.innerHTML;
-    const minute = time?.split("' ")[0];
-    if (Number(minute) < 50) {
-      const sub = document.querySelector('.sub-button.fr')?.querySelector('a');
-      sub?.click();
-      await sleep(sv[2]);
-      const submitEle = document.querySelector('#submitConfirmPop');
-      const aEle = submitEle?.querySelector('.confirm');
-      (aEle as HTMLElement)?.click(); // 限时提交
+  watchIframe(documentElement);
+  iframe.addEventListener('load', function () {
+    watchIframe(documentElement);
+  });
+};
+const setupInterceptor = () => {
+  let currentUrl = window.location.href;
+  setInterval(() => {
+    if (currentUrl !== window.location.href) {
+      currentUrl = window.location.href;
+      processIframeTask();
     }
-  }, 300000);
+  }, 5000);
 };
-
-/**
- * 考试
- */
-const init = () => {
-  const topTxt = document.querySelector('.subNav.top-subNav')?.ariaLabel;
-  if (topTxt?.includes('考试')) {
-    examination(); // 单元测试
+const useCxChapterFunc = () => {
+  const init = () => {
+    if (!window.location.href.includes('&mooc2=1')) {
+      window.location.href = currentUrl + '&mooc2=1';
+    }
+    addLog({
+      value: `检测到用户进入到章节学习页面`,
+      type: 'primary',
+    });
+    addLog({
+      value: `正在解析任务点，请稍等（如长时间没有反应，请刷新页面）`,
+      type: 'warning',
+    });
+  };
+  init();
+  processIframeTask();
+  setupInterceptor();
+};
+const useCxWorkLogicFunc = async () => {
+  addLog({
+    value: `进入新版作业页面，开始准备答题`,
+    type: 'primary',
+  });
+  addLog({
+    value: `正在解析题目, 请等待`,
+    type: 'warning',
+  });
+  await new CxQuestionHandler('zy').init();
+};
+const useCxExamLogicFunc = async () => {
+  addLog({
+    value: `进入新版考试页面，开始准备答题`,
+    type: 'primary',
+  });
+  addLog({
+    value: `正在解析题目, 请等待`,
+    type: 'warning',
+  });
+  await new CxQuestionHandler('ks').init();
+  if (configStore.platformParams.cx.autoNext) {
+    addLog({
+      value: `自动切换已开启，正在前往下一题`,
+      type: 'success',
+    });
+    await sleep(configStore.otherParams.timeInterval);
+    _unsafeWindow.getTheNextQuestion(1);
   } else {
-    initTask(); // 章节检测
+    addLog({
+      value: `已经关闭自动切换，在设置里可更改`,
+      type: 'danger',
+    });
   }
 };
+// const hookError = () => {
+//   console.log('hookError');
+//   const oldset = _unsafeWindow.setInterval;
+//   const oldout = _unsafeWindow.setTimeout;
+//   _unsafeWindow.setInterval = function (...args) {
+//     const err = new Error();
+//     if (err.stack && err.stack.indexOf('checkoutNotTrustScript') !== -1) {
+//       return -1;
+//     }
+//     return oldset.call(this, ...args);
+//   };
+//   _unsafeWindow.setTimeout = function (...args) {
+//     const err = new Error();
+//     if (err.stack && err.stack.indexOf('checkoutNotTrustScript') !== -1) {
+//       return -1;
+//     }
+//     return oldout.call(this, ...args);
+//   };
+// };
+// const useZhsAnswerLogicFunc = async () => {
+//   hookError();
+//   const logStore = useLogStore();
+//   useConfigStore();
+//   logStore.addLog(`进入答题页面，开始准备答题`, 'primary');
+//   logStore.addLog(`正在解析题目, 请等待5s`, 'warning');
+//   new XMLHttpRequestInterceptor(['gateway/t/v1/answer/hasAnswer'], async () => {
+//     await sleep(1);
+//     _unsafeWindow.document.getSelection = function () {
+//       return {
+//         removeAllRanges: function () {},
+//       };
+//     };
+//     _unsafeWindow.document.onselectstart = true;
+//     _unsafeWindow.document.oncontextmenu = true;
+//     _unsafeWindow.document.oncut = true;
+//     _unsafeWindow.document.oncopy = true;
+//     _unsafeWindow.document.onpaste = true;
+//     await new ZhsQuestionHandler().init();
+//     return true;
+//   });
+// };
+const getFunc = () => {
+  const urlLogicPairs = [
+    { keyword: '/mycourse/studentstudy', logic: useCxChapterFunc },
+    { keyword: '/mooc2/work/dowork', logic: useCxWorkLogicFunc },
+    { keyword: '/exam-ans/exam', logic: useCxExamLogicFunc },
+    { keyword: '/exam-ans/mooc2/exam/preview', logic: useCxExamLogicFunc },
+    {
+      keyword: 'mycourse/stu?courseid',
+      logic: () => {
+        addLog({
+          value: `该页面无任务，请进入章节或答题页面使用`,
+          type: 'error',
+        });
+      },
+    },
+    // { keyword: '/stuExamWeb.html', logic: useZhsAnswerLogicFunc },
+  ];
+  const executeLogicByUrl = () => {
+    for (const { keyword, logic } of urlLogicPairs) {
+      if (window.location.href.includes(keyword)) {
+        logic();
+        configStore.isShow = true;
+        return;
+      }
+    }
+    configStore.isShow = false;
+  };
+  executeLogicByUrl();
+};
 
-onMounted(async () => {
-  logger.system.init();
-  await nextTick();
-  // init();
+const keyInput = (value) => {
+  if (value) {
+    userInfoStore.key = value;
+  }
+};
+const clearKey = () => {
+  userInfoStore.key = null;
+};
+onMounted(() => {
+  // if (localStorage.getItem('keys')) {
+  //   configStore.keys = localStorage.getItem('keys');
+  // }
+  // logStore.addLog('用户悉知：使用脚本即为完全同意用户协议', 'success');
+  // validateKeys();
+
+  addLog({
+    value: `脚本加载成功，正在解析网页`,
+    type: 'primary',
+  });
+  addLog({
+    value: `请不要多个脚本同时使用，会有脚本冲突问题`,
+    type: 'warning',
+  });
+  addLog({
+    value: `如果脚本出现异常，请用谷歌、火狐等浏览器`,
+    type: 'warning',
+  });
+  getFunc();
 });
-const dialogVisible = ref(true);
 </script>
 <template>
-  <LogDialog
-    v-model:list="list"
-    v-if="dialogVisible"
-    :title="title"
-    :statusInfo="{ text: '正在执行', type: 'info' }"
-  >
-    <button @click="runTest">测试</button>
-    <!-- <button @click="runTests">测试</button> -->
-    <!-- <button @click="examination">考试</button> -->
-    <!-- <button @click="testLogs">考试</button> -->
-  </LogDialog>
+  <DraggableDialog :boundary="true" axis="both" v-if="configStore.isShow">
+    <div class="tab-bar">
+      <el-button
+        v-for="tab in configStore.tabBar"
+        :key="tab.value"
+        :size="configStore.sizes"
+        @click="configStore.activeTab = tab.value"
+        :type="configStore.activeTab === tab.value ? 'primary' : ''"
+      >
+        {{ tab.label }}
+      </el-button>
+    </div>
+    <div v-if="configStore.activeTab === 'log'">
+      <div class="log-generation">
+        <div
+          v-for="item in configStore.logData"
+          :key="item"
+          class="log-item"
+          :class="[item.type]"
+        >
+          <span class="mr-6">{{ item.time }}</span>
+          <span>{{ item.value }}</span>
+        </div>
+      </div>
+    </div>
+    <div v-if="configStore.activeTab === 'settings'">
+      <div class="settings-section">
+        <span class="title">答题模式</span>
+        <el-switch
+          v-model="configStore.platformParams.cx.answeringMode"
+          active-text="只答题，不做其他"
+          inline-prompt
+        ></el-switch>
+      </div>
+      <div class="settings-section">
+        <span class="title">自动切换</span>
+        <el-switch
+          v-model="configStore.platformParams.cx.autoNext"
+          active-text="自动跳转下一章节"
+          inline-prompt
+        ></el-switch>
+      </div>
+
+      <div class="settings-section">
+        <span class="title">答题正确率</span>
+        <el-input-number
+          v-model="configStore.otherParams.rate"
+          v-bind="{ inputNumberAttr }"
+          :min="50"
+          :max="90"
+        />
+      </div>
+    </div>
+    <div v-if="configStore.activeTab === 'guide'" class="guide">
+      <div class="section">
+        <p>
+          1、如需填写卡密，依次操作：[1] 点击标签页"答题" --> [2] 在文本框内填写
+          --> [3] 刷新
+        </p>
+      </div>
+      <div class="tip">
+        <div class="title">注意</div>
+        <p>1、卡密可通过微信搜索 "AT搜题" 免费获取</p>
+      </div>
+    </div>
+    <div v-if="configStore.activeTab === 'keys'" class="keys">
+      <div class="validate-key">
+        <el-input
+          v-model.trim="configStore.key"
+          style="width: 100%"
+          placeholder="输入卡密，在指南中查看卡密获取方式"
+          clearable
+          @input="keyInput"
+          @clear="clearKey"
+        />
+      </div>
+    </div>
+  </DraggableDialog>
 </template>
-
-<style scoped>
-.demo-tabs {
-  width: 100%;
-  height: 100%;
+<style lang="scss" scoped>
+.tab-bar {
+  margin-bottom: 16px;
 }
+.log-generation {
+  max-height: 260px;
+  overflow-y: auto;
+  &::-webkit-scrollbar {
+    width: 3px;
+  }
+  .log-item {
+    border-bottom: 1px solid #ccc;
+    border-radius: 3px;
+    padding: 2px;
+    margin-bottom: 6px;
+    font-size: 12px;
+  }
+  .mr-6 {
+    margin-right: 6px;
+  }
+  .warning {
+    color: #e6a23c;
+  }
+  .error {
+    color: #dc3545;
+  }
 
-.bottom-border {
-  margin: 8px 0;
-  border-bottom: 0.5px solid #eeeeee;
+  .success {
+    color: #67c23a;
+  }
+
+  .default {
+    color: #909399;
+  }
+
+  .primary {
+    color: #409eff;
+  }
 }
-
-.glass-body {
-  width: 100%;
-  height: 100%;
-  font-size: 12px;
-  overflow: auto;
-}
-
-.glass-body::-webkit-scrollbar {
-  width: 8px;
-  /* height: 11px; */
-  /* background-color: #f5f5f5; */
-}
-
-.glass-body::-webkit-scrollbar-track {
-  /* -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3); */
-  border-radius: 10px;
-  background-color: #f5f5f5;
-}
-
-.glass-body::-webkit-scrollbar-thumb {
-  border-radius: 10px;
-  /* background-color: #4b5563; */
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-
-.flex {
+.settings-section {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  .title {
+    width: 85px;
+    font-size: 12px;
+    font-weight: 400;
+  }
 }
+.guide {
+  .section {
+    p {
+      line-height: 24px;
+      color: #303133;
+    }
+  }
 
-.pointer {
-  cursor: pointer;
+  .tip {
+    margin: 10px 0;
+    .title {
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    p {
+      color: #dc3545;
+    }
+  }
 }
+.keys {
+  .userinfo {
+    margin: 20px 0 0;
 
-.glass-header {
-  height: 30px;
-  line-height: 24px;
-  font-size: 14px;
-  color: #303133;
-  border-bottom: 1px solid #eeeeee;
-}
-
-.glass-container {
-  width: 300px;
-  height: 300px;
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  z-index: 9999;
-  margin-top: -300px;
-  margin-left: -217.5px;
-  color: #333333;
-  border-radius: 8px;
-  backdrop-filter: blur(5px);
-  background-color: rgba(255, 255, 255, 1);
-  /* box-shadow: rgba(0, 0, 0, 0.3) 2px 8px 8px; */
-  /* border: 2px rgba(255, 255, 255, 0.4) solid;
-  border-bottom: 2px rgba(40, 40, 40, 0.35) solid;
-  border-right: 2px rgba(40, 40, 40, 0.35) solid; */
-  box-shadow: 0px 0px 12px rgba(0, 0, 0, 0.12);
-  padding: 0 10px 10px;
+    .el-row {
+      margin-bottom: 10px;
+    }
+  }
+  .validate-key {
+    margin: 10px 0 0;
+    display: flex;
+    gap: 10px;
+  }
+  .key-btn {
+    width: 100%;
+    margin: 18px auto;
+  }
 }
 </style>

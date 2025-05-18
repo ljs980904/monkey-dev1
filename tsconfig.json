@@ -1,5 +1,9 @@
 {
   "compilerOptions": {
+    "types": [
+      "vite/client",
+      "vue"
+    ],
     "target": "ESNext",
     "useDefineForClassFields": true,
     "module": "ESNext",
@@ -16,6 +20,11 @@
     "skipLibCheck": true,
     "noEmit": true,
     "noImplicitAny": false,
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    }
   },
   "include": [
     "src/**/*.ts",
