@@ -1,7 +1,7 @@
 import { createApp } from 'vue';
-import './style.css';
+import './assets/css/style.css';
 import 'element-plus/dist/index.css';
-import pinia from './stores'  //引入
+import pinia from './stores'; //引入
 import App from './App.vue';
 
 const initApp = () => {
@@ -11,10 +11,10 @@ const initApp = () => {
   app.mount(
     (() => {
       const app = document.createElement('div');
-      app.className = "script-div"
+      app.className = 'script-div';
       document.body.append(app);
       return app;
     })()
   );
-}
+};
 window.addEventListener('load', initApp);

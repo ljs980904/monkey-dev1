@@ -11,6 +11,9 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 3002,
   },
+  build: {
+    minify: false, // 关闭所有压缩
+  },
   plugins: [
     vue(),
     AutoImportComponents({
@@ -20,18 +23,16 @@ export default defineConfig({
       resolvers: [ElementPlusResolver()],
       extensions: ['vue'], //文件扩展
       // 配置type文件生成位置
-      dts: 'src/components.d.ts',
+      dts: 'types/components.d.ts',
     }),
     AutoImport({
       imports: ['vue', 'pinia', util.unimportPreset], // util.unimportPreset
       // 时使用typescript，需要指定生成对应的d.ts文件或者设置为true,生成默认导入d.ts文件
       dts: 'types/auto-imports.d.ts',
       // dts: path.resolve(__dirname, 'types/auto-import.d.ts'),
-      dirs: ['src/components',],
+      dirs: ['src/components'],
       // 自动导入 Element Plus 相关函数，如：ElMessage, ElMessageBox... (带样式)
-      resolvers: [
-        ElementPlusResolver(),
-      ],
+      resolvers: [ElementPlusResolver()],
       // 解决eslint报错问题
       // eslintrc: {
       //   // 这里先设置成true然后npm run dev 运行之后会生成 .eslintrc-auto-import.json 文件之后，在改为false
@@ -40,15 +41,15 @@ export default defineConfig({
       //   globalsPropValue: true,
       // },
     }),
-
     // 油猴
     monkey({
       entry: 'src/main.ts', // 脚本文件的入口路径
       userscript: {
         name: '超星学习通--网课小助手|修复视频播放|自动跳转任务点|自动答题|超高题库覆盖率|逐渐支持更多平台',
         namespace: 'helper',
-        version: '1.0.0',
-        description: '学习助手-支持学习通，目前已完成：视频自动播放，自动切换任务点，章节测试，作业自动完成，自动保存，使用脚本进入对应平台的页面',
+        version: '1.0.1',
+        description:
+          '学习助手-支持学习通，目前已完成：视频自动播放，自动切换任务点，章节测试，作业自动完成，自动保存，使用脚本进入对应平台的页面',
         author: 'helper',
         'run-at': 'document-start',
         match: ['*://*.chaoxing.com/*'],
@@ -56,6 +57,7 @@ export default defineConfig({
         grant: ['unsafeWindow'], // 使用window对象
         noframes: true,
         connect: ['autohelper.top', 'localhost'], // 允许跨域的地址,
+        // @license      MIT
         resource: {
           // 嵌入 table.json 文件
           Table: 'https://www.forestpolice.org/ttf/2.0/table.json',

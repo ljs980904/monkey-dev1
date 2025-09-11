@@ -13,20 +13,15 @@
     >
       <div class="header-flex">
         <div class="avatar-name" v-show="isExpand">
-          <img
-            src="https://public.readdy.ai/ai/img_res/2d58579252345596c10002ce85d4f6f8.jpg"
-            alt="Avatar"
-            class="avatar"
-          />
-          <div class="name">{{ title }}</div>
+          <img :src="aiIcon" alt="Avatar" class="avatar" />
+          <div class="header-title">{{ title }}</div>
+          <el-tooltip placement="top">
+            <template #content>
+              <span>请使用新最新版、避免使用旧版本</span></template
+            >
+            <img :src="tips" alt="" class="tips" srcset="" />
+          </el-tooltip>
         </div>
-        <!-- <img
-          :src="isExpand ? fullscreen : expand"
-          @click="showIcon = showIcon === 1 ? 2 : 1"
-          class="icon"
-          alt=""
-          srcset=""
-        /> -->
       </div>
     </div>
     <div class="dialog-content" v-if="isExpand">
@@ -36,8 +31,10 @@
 </template>
 
 <script setup>
-import fullscreen from '../assets/images/fullscreen-shrink2x.png';
-import expand from '../assets/images/fullscreen-expand2x.png';
+import aiIcon from '../assets/images/ai-icon.jpg';
+// import fullscreen from '../assets/images/fullscreen-shrink2x.png';
+// import expand from '../assets/images/fullscreen-expand2x.png';
+import tips from '../assets/svg/tips.svg';
 const props = defineProps({
   title: {
     type: String,
@@ -159,13 +156,18 @@ onUnmounted(() => {
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   overflow: hidden;
-  z-index: 9999;
+  z-index: 1000;
   padding: 10px 14px;
   .icon {
     width: 16px;
     height: 16px;
-
     margin-left: auto;
+    cursor: pointer;
+  }
+  .tips {
+    width: 16px;
+    height: 16px;
+    margin-left: 4px;
     cursor: pointer;
   }
   .header-flex {
@@ -189,7 +191,7 @@ onUnmounted(() => {
         border-radius: 50%;
         margin-right: 5px;
       }
-      .name {
+      .header-title {
         height: 30px;
         line-height: 30px;
         font-size: 12px;

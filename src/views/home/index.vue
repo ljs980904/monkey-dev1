@@ -4,7 +4,6 @@ import DraggableDialog from '../../components/draggable-dialog.vue';
 import { crackFont } from '../../utils/crack-font';
 import { sleep } from '../../utils';
 import { simulateRequest } from './model';
-
 const userInfoStore = useUserInfoStore();
 // 配置工具
 const configStore = reactive({
@@ -47,21 +46,41 @@ const configStore = reactive({
       label: '设置',
     },
   ],
-  assistantName: 'AI 助手',
-  avatarSrc:
-    'https://public.readdy.ai/ai/img_res/2d58579252345596c10002ce85d4f6f8.jpg',
+
+  // avatarSrc:
+  //   'https://public.readdy.ai/ai/img_res/2d58579252345596c10002ce85d4f6f8.jpg',
   workUrl: window.location.href,
   key: userInfoStore.key, // keys
   validatedKeys: false, // 是否验证
-  url: 'https://autohelper.top/prod-api/question/dpQuestion',
-  // url: 'http://localhost:8080/question/dpQuestion',
+  // url: 'https://autohelper.top/prod-api/question/dpQuestion',
+  url: 'http://localhost:8080/question/dpQuestion',
 });
+
 const inputNumberAttr = {
   step: 1,
   'step-strictly': true,
   size: 'small',
 };
 
+const column = [
+  {
+    type: 'index',
+    width: '50',
+  },
+  {
+    prop: 'title',
+    label: '题目',
+  },
+  {
+    prop: 'answer',
+    label: '答案',
+    width: '140',
+  },
+  {
+    prop: 'source',
+    label: '来源',
+  },
+];
 const __defProp = Object.defineProperty;
 const __defNormalProp = (obj, key, value) =>
   key in obj
@@ -88,7 +107,6 @@ const addLog = (obj) => {
 };
 
 // 工具函数：等待 iframe 加载完成
-
 const waitIframeLoad = async (iframe) => {
   return new Promise((resolve) => {
     const intervalId = setInterval(async () => {
@@ -288,44 +306,52 @@ class CxQuestionHandler extends BaseQuestionHandler {
     __publicField(this, 'init', async () => {
       this.questions = [];
       this.parseHtml();
+
       if (this.questions.length) {
         addLog({
           value: `成功解析到${this.questions.length}个题目`,
           type: 'primary',
         });
         for (const [index, question] of this.questions.entries()) {
-          console.log('question===========', question);
-
-          const resp = await simulateRequest(
-            configStore.url,
-            question,
-            _unsafeWindow,
-            configStore.key
-          );
-
-          if (resp?.code === 200) {
-            const { answers, number } = resp.data;
-            question.answer = answers;
-            this.fillQuestion(question);
+          try {
+            const resp = await simulateRequest(
+              configStore.url,
+              question,
+              _unsafeWindow,
+              configStore.key
+            );
+            const { answer, count } = resp;
+            question.source = resp.source;
+            if (answer?.length) {
+              question.answer = answer;
+              this.fillQuestion(question);
+              addLog({
+                value: `第${index + 1}道题搜索成功，剩余次数：${count}`,
+                type: 'success',
+              });
+              this.correctNum += 1;
+            } else {
+              addLog({
+                value: `第${index + 1}道题没有找到答案`,
+                type: 'warning',
+              });
+            }
+            userInfoStore.questionList.unshift(question);
+          } catch (error) {
             addLog({
-              value: `第${index + 1}道题搜索成功，剩余次数：${number}`,
-              type: 'success',
-            });
-            this.correctNum += 1;
-          } else {
-            addLog({
-              value: `第${index + 1}道题搜索失败，${resp.msg}`,
+              value: `第${index + 1}道题搜索失败`,
               type: 'error',
             });
-            question.answer[0] = '请求失败，请稍后再试';
+          } finally {
+            if (!this._document) {
+              let _a = this._document;
+              await _a.querySelectorAll('.switch-btn-box > button')[1].click();
+            }
+            await sleep(2);
           }
-          if (!this._document) {
-            let _a = this._document;
-            await _a.querySelectorAll('.switch-btn-box > button')[1].click();
-          }
-          await sleep(2);
         }
-      } else {
+      }
+      if (this.questions.length === 0) {
         addLog({
           value: `未解析到题目，请进入正确页面`,
           type: 'danger',
@@ -387,6 +413,7 @@ class CxQuestionHandler extends BaseQuestionHandler {
           }
         });
       } else if (question.type === '3') {
+        debugger;
         let answer = 'true';
         if (
           question.answer[0].match(/(^|,)(正确|是|对|√|T|ri|right|true)(,|$)/)
@@ -732,47 +759,6 @@ const useCxExamLogicFunc = async () => {
     });
   }
 };
-// const hookError = () => {
-//   console.log('hookError');
-//   const oldset = _unsafeWindow.setInterval;
-//   const oldout = _unsafeWindow.setTimeout;
-//   _unsafeWindow.setInterval = function (...args) {
-//     const err = new Error();
-//     if (err.stack && err.stack.indexOf('checkoutNotTrustScript') !== -1) {
-//       return -1;
-//     }
-//     return oldset.call(this, ...args);
-//   };
-//   _unsafeWindow.setTimeout = function (...args) {
-//     const err = new Error();
-//     if (err.stack && err.stack.indexOf('checkoutNotTrustScript') !== -1) {
-//       return -1;
-//     }
-//     return oldout.call(this, ...args);
-//   };
-// };
-// const useZhsAnswerLogicFunc = async () => {
-//   hookError();
-//   const logStore = useLogStore();
-//   useConfigStore();
-//   logStore.addLog(`进入答题页面，开始准备答题`, 'primary');
-//   logStore.addLog(`正在解析题目, 请等待5s`, 'warning');
-//   new XMLHttpRequestInterceptor(['gateway/t/v1/answer/hasAnswer'], async () => {
-//     await sleep(1);
-//     _unsafeWindow.document.getSelection = function () {
-//       return {
-//         removeAllRanges: function () {},
-//       };
-//     };
-//     _unsafeWindow.document.onselectstart = true;
-//     _unsafeWindow.document.oncontextmenu = true;
-//     _unsafeWindow.document.oncut = true;
-//     _unsafeWindow.document.oncopy = true;
-//     _unsafeWindow.document.onpaste = true;
-//     await new ZhsQuestionHandler().init();
-//     return true;
-//   });
-// };
 const getFunc = () => {
   const urlLogicPairs = [
     { keyword: '/mycourse/studentstudy', logic: useCxChapterFunc },
@@ -811,13 +797,9 @@ const keyInput = (value) => {
 const clearKey = () => {
   userInfoStore.key = null;
 };
-onMounted(() => {
-  // if (localStorage.getItem('keys')) {
-  //   configStore.keys = localStorage.getItem('keys');
-  // }
-  // logStore.addLog('用户悉知：使用脚本即为完全同意用户协议', 'success');
-  // validateKeys();
 
+onMounted(() => {
+  userInfoStore.questionList = [];
   addLog({
     value: `脚本加载成功，正在解析网页`,
     type: 'primary',
@@ -834,7 +816,12 @@ onMounted(() => {
 });
 </script>
 <template>
-  <DraggableDialog :boundary="true" axis="both" v-if="configStore.isShow">
+  <DraggableDialog
+    :boundary="true"
+    axis="both"
+    :width="configStore.activeTab === 'keys' ? '500px' : '336px'"
+    v-if="configStore.isShow"
+  >
     <div class="tab-bar">
       <el-button
         v-for="tab in configStore.tabBar"
@@ -910,6 +897,17 @@ onMounted(() => {
           @clear="clearKey"
         />
       </div>
+      <div class="topic">
+        <el-table
+          v-if="userInfoStore.questionList.length"
+          :data="userInfoStore.questionList"
+          style="width: 100%"
+          max-height="400px"
+        >
+          <el-table-column v-for="c in column" :key="c" v-bind="c" />
+        </el-table>
+        <el-empty v-else description="无需答题" />
+      </div>
     </div>
   </DraggableDialog>
 </template>
@@ -981,6 +979,7 @@ onMounted(() => {
   }
 }
 .keys {
+  width: 500px;
   .userinfo {
     margin: 20px 0 0;
 

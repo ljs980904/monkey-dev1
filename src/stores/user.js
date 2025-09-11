@@ -3,6 +3,7 @@ const useUserInfoStore = defineStore('userInfo', {
   persist: true, // 持久化
   state: () => ({
     key: null,
+    questionList: []
   })
 })
 export default useUserInfoStore

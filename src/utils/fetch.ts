@@ -16,19 +16,21 @@ export const request = (
   onSuccess: Function,
   onError: Function
 ) => {
-
   GM_xmlhttpRequest({
     method: method,
     headers,
-
     url: url,
     // timeout: 20000, // 5秒超时
     data: method === 'POST' ? data : null,
     onload: function (response) {
-
       if (response.status >= 200 && response.status < 300) {
         if (onSuccess) {
-          onSuccess(response.responseText);
+          const resp = JSON.parse(response.responseText);
+          if (resp.code === 200) {
+            onSuccess(resp.data);
+          } else {
+            onError(new Error(resp.msg));
+          }
         }
       } else {
         if (onError) {
