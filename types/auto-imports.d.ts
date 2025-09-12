@@ -7,6 +7,7 @@
 export {}
 declare global {
   const EffectScope: typeof import('vue')['EffectScope']
+  const ElMessage: typeof import('element-plus/es')['ElMessage']
   const GM: typeof import('vite-plugin-monkey/dist/client')['GM']
   const GM_addElement: typeof import('vite-plugin-monkey/dist/client')['GM_addElement']
   const GM_addStyle: typeof import('vite-plugin-monkey/dist/client')['GM_addStyle']

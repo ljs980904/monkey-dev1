@@ -1,10 +1,28 @@
 <script setup>
-import useUserInfoStore from '../../stores/user'; //引入仓库
-import DraggableDialog from '../../components/draggable-dialog.vue';
-import { crackFont } from '../../utils/crack-font';
-import { sleep } from '../../utils';
-import { simulateRequest } from './model';
+import {
+  Operation,
+  Key,
+  Comment,
+  List,
+  QuestionFilled,
+  Tools,
+  Notebook,
+  Warning,
+} from '@element-plus/icons-vue';
+import useUserInfoStore from '../stores/user'; //引入仓库
+import DraggableDialog from '../components/draggable-dialog.vue';
+import { crackFont } from '../utils/crack-font';
+import { sleep } from '../utils';
+import {
+  simulateRequest,
+  tabBars,
+  settings,
+  guide,
+  inputNumberAttr,
+  protocol,
+} from './model';
 const userInfoStore = useUserInfoStore();
+
 // 配置工具
 const configStore = reactive({
   isShow: true,
@@ -27,26 +45,7 @@ const configStore = reactive({
   logData: [], // 日志
   isfalse: false,
   sizes: 'small',
-  activeTab: 'log',
-  tabBar: [
-    {
-      value: 'log',
-      label: '首页',
-    },
-    {
-      value: 'keys',
-      label: '答题',
-    },
-    {
-      value: 'guide',
-      label: '指南',
-    },
-    {
-      value: 'settings',
-      label: '设置',
-    },
-  ],
-
+  activeTab: 'settings',
   // avatarSrc:
   //   'https://public.readdy.ai/ai/img_res/2d58579252345596c10002ce85d4f6f8.jpg',
   workUrl: window.location.href,
@@ -56,17 +55,7 @@ const configStore = reactive({
   url: 'http://localhost:8080/question/dpQuestion',
 });
 
-const inputNumberAttr = {
-  step: 1,
-  'step-strictly': true,
-  size: 'small',
-};
-
 const column = [
-  {
-    type: 'index',
-    width: '50',
-  },
   {
     prop: 'title',
     label: '题目',
@@ -75,10 +64,6 @@ const column = [
     prop: 'answer',
     label: '答案',
     width: '140',
-  },
-  {
-    prop: 'source',
-    label: '来源',
   },
 ];
 const __defProp = Object.defineProperty;
@@ -150,7 +135,7 @@ const processIframe = async (iframe) => {
   if (configStore.platformParams.cx.answeringMode) {
     addLog({
       value: `只答题模式已开，可在设置里调整`,
-      type: 'primary',
+      type: 'warning',
     });
   } else {
     const ansJobIcon = iframe.parentElement
@@ -185,7 +170,7 @@ const processMedia = async (mediaType, iframeDocument) => {
     });
     addLog({
       value: `正在尝试播放${mediaType}，请稍等`,
-      type: 'primary',
+      type: 'warning',
     });
     await sleep(1);
     let isExecuted = false;
@@ -310,7 +295,7 @@ class CxQuestionHandler extends BaseQuestionHandler {
       if (this.questions.length) {
         addLog({
           value: `成功解析到${this.questions.length}个题目`,
-          type: 'primary',
+          type: 'success',
         });
         for (const [index, question] of this.questions.entries()) {
           try {
@@ -336,7 +321,7 @@ class CxQuestionHandler extends BaseQuestionHandler {
                 type: 'warning',
               });
             }
-            userInfoStore.questionList.unshift(question);
+            userInfoStore.questionList = [question];
           } catch (error) {
             addLog({
               value: `第${index + 1}道题搜索失败`,
@@ -581,14 +566,14 @@ const processWork = async (iframe, iframeDocument, iframeWindow) => {
     crackFont(iframeDocument); // 解密
     addLog({
       value: `题目列表获取成功`,
-      type: 'primary',
+      type: 'success',
     });
     await sleep(2);
     const correctRate = await new CxQuestionHandler('zj', iframe)?.init(); // 答题
     if (configStore.platformParams.cx.autoNext) {
       addLog({
         value: `自动提交已开启，尝试提交`,
-        type: 'primary',
+        type: 'warning',
       });
 
       if (correctRate < configStore.otherParams.rate) {
@@ -614,7 +599,7 @@ const processWork = async (iframe, iframeDocument, iframeWindow) => {
     } else {
       addLog({
         value: `未开启自动提交，暂存`,
-        type: 'primary',
+        type: 'warning',
       });
       await iframeWindow.noSubmit();
     }
@@ -713,7 +698,7 @@ const useCxChapterFunc = () => {
     }
     addLog({
       value: `检测到用户进入到章节学习页面`,
-      type: 'primary',
+      type: 'success',
     });
     addLog({
       value: `正在解析任务点，请稍等（如长时间没有反应，请刷新页面）`,
@@ -727,7 +712,7 @@ const useCxChapterFunc = () => {
 const useCxWorkLogicFunc = async () => {
   addLog({
     value: `进入新版作业页面，开始准备答题`,
-    type: 'primary',
+    type: 'success',
   });
   addLog({
     value: `正在解析题目, 请等待`,
@@ -738,7 +723,7 @@ const useCxWorkLogicFunc = async () => {
 const useCxExamLogicFunc = async () => {
   addLog({
     value: `进入新版考试页面，开始准备答题`,
-    type: 'primary',
+    type: 'success',
   });
   addLog({
     value: `正在解析题目, 请等待`,
@@ -789,21 +774,23 @@ const getFunc = () => {
   executeLogicByUrl();
 };
 
-const keyInput = (value) => {
-  if (value) {
-    userInfoStore.key = value;
+const validateKey = () => {
+  if (!configStore.key) {
+    addLog({
+      value: `请先输入卡密`,
+      type: 'warning',
+    });
+    return;
   }
+  userInfoStore.key = configStore.key;
 };
+
 const clearKey = () => {
   userInfoStore.key = null;
 };
 
 onMounted(() => {
   userInfoStore.questionList = [];
-  addLog({
-    value: `脚本加载成功，正在解析网页`,
-    type: 'primary',
-  });
   addLog({
     value: `请不要多个脚本同时使用，会有脚本冲突问题`,
     type: 'warning',
@@ -812,154 +799,355 @@ onMounted(() => {
     value: `如果脚本出现异常，请用谷歌、火狐等浏览器`,
     type: 'warning',
   });
+  addLog({
+    value: `脚本加载成功，正在解析网页`,
+    type: 'success',
+  });
   getFunc();
 });
 </script>
 <template>
-  <DraggableDialog
-    :boundary="true"
-    axis="both"
-    :width="configStore.activeTab === 'keys' ? '500px' : '336px'"
-    v-if="configStore.isShow"
-  >
+  <DraggableDialog :boundary="true" axis="both" v-if="configStore.isShow">
     <div class="tab-bar">
-      <el-button
-        v-for="tab in configStore.tabBar"
+      <div
+        v-for="tab in tabBars"
         :key="tab.value"
         :size="configStore.sizes"
         @click="configStore.activeTab = tab.value"
-        :type="configStore.activeTab === tab.value ? 'primary' : ''"
+        class="tab-bar-item"
+        :class="[configStore.activeTab === tab.value ? 'active' : '']"
       >
+        <el-icon>
+          <Key v-if="tab.value === 'key'" />
+          <Tools v-if="tab.value === 'settings'" />
+          <QuestionFilled v-if="tab.value === 'help'" />
+          <Warning v-if="tab.value === 'protocol'" />
+        </el-icon>
         {{ tab.label }}
-      </el-button>
+      </div>
     </div>
-    <div v-if="configStore.activeTab === 'log'">
-      <div class="log-generation">
-        <div
-          v-for="item in configStore.logData"
-          :key="item"
-          class="log-item"
-          :class="[item.type]"
-        >
-          <span class="mr-6">{{ item.time }}</span>
-          <span>{{ item.value }}</span>
+    <div class="content-body">
+      <template v-if="configStore.activeTab === 'key'" class="keys">
+        <div class="validate-key body-box">
+          <div class="card-title">
+            <el-icon :size="18" color="#4a90e2"><Key /></el-icon>授权管理
+          </div>
+          <el-input
+            v-model.trim="configStore.key"
+            style="width: 100%"
+            placeholder="输入卡密、在指南中查看卡密获取方式"
+            clearable
+            @clear="clearKey"
+          />
+          <div class="start-parse" @click="validateKey">验证卡密</div>
+          <div style="margin-top: 16px">
+            <div class="card-title">
+              <el-icon :size="18" color="#4a90e2"><List /></el-icon>题目列表
+            </div>
+            <el-table
+              v-if="userInfoStore.questionList.length"
+              :data="userInfoStore.questionList"
+              style="width: 100%"
+              :show-header="false"
+            >
+              <el-table-column v-for="c in column" :key="c" v-bind="c" />
+            </el-table>
+          </div>
         </div>
-      </div>
-    </div>
-    <div v-if="configStore.activeTab === 'settings'">
-      <div class="settings-section">
-        <span class="title">答题模式</span>
-        <el-switch
-          v-model="configStore.platformParams.cx.answeringMode"
-          active-text="只答题，不做其他"
-          inline-prompt
-        ></el-switch>
-      </div>
-      <div class="settings-section">
-        <span class="title">自动切换</span>
-        <el-switch
-          v-model="configStore.platformParams.cx.autoNext"
-          active-text="自动跳转下一章节"
-          inline-prompt
-        ></el-switch>
-      </div>
+      </template>
+      <template v-if="configStore.activeTab === 'settings'">
+        <div class="body-box">
+          <div class="card-title">
+            <el-icon :size="18" color="#4a90e2"><Operation /></el-icon>功能配置
+          </div>
+          <div class="settings-main">
+            <div
+              v-for="setting in settings"
+              class="settings-section"
+              :key="setting.value"
+            >
+              <div class="title">
+                <span class="title-text">{{ setting.name }}</span>
+                <span class="sub-title">{{ setting.desc }}</span>
+              </div>
+              <el-switch
+                v-if="setting.value === 'answeringMode'"
+                class="settings-switch"
+                v-model="configStore.platformParams.cx.answeringMode"
+                inline-prompt
+              />
+              <el-switch
+                v-if="setting.value === 'autoNext'"
+                class="settings-switch"
+                v-model="configStore.platformParams.cx.autoNext"
+                inline-prompt
+              />
+              <el-input-number
+                v-if="setting.value === 'rate'"
+                class="settings-switch"
+                v-model="configStore.otherParams.rate"
+                v-bind="{ inputNumberAttr }"
+                :min="60"
+                :max="90"
+              />
+            </div>
+          </div>
+        </div>
+      </template>
+      <template v-if="configStore.activeTab === 'help'" class="guide">
+        <div class="guide body-box">
+          <div class="card-title">
+            <el-icon :size="18" color="#4a90e2"><Notebook /></el-icon>使用指南
+          </div>
+          <div class="guide-content">
+            <div
+              v-for="item in guide"
+              :key="item.index"
+              class="guide-content-item"
+            >
+              <div class="guide-content-index">{{ item.index }}</div>
+              <div class="guide-content-content">{{ item.content }}</div>
+            </div>
+          </div>
+        </div>
+      </template>
+      <template v-if="configStore.activeTab === 'protocol'" class="guide">
+        <div class="guide body-box">
+          <div class="card-title">
+            <el-icon :size="18" color="#f56c6c"><Warning /></el-icon>协议
+          </div>
+          <div class="guide-content">
+            <div
+              v-for="item in protocol"
+              :key="item.index"
+              class="guide-content-item"
+            >
+              <div class="guide-content-index">{{ item.index }}</div>
+              <div class="guide-content-content">{{ item.content }}</div>
+            </div>
+          </div>
+        </div>
+      </template>
 
-      <div class="settings-section">
-        <span class="title">答题正确率</span>
-        <el-input-number
-          v-model="configStore.otherParams.rate"
-          v-bind="{ inputNumberAttr }"
-          :min="50"
-          :max="90"
-        />
-      </div>
-    </div>
-    <div v-if="configStore.activeTab === 'guide'" class="guide">
-      <div class="section">
-        <p>
-          1、如需填写卡密，依次操作：[1] 点击标签页"答题" --> [2] 在文本框内填写
-          --> [3] 刷新
-        </p>
-      </div>
-      <div class="tip">
-        <div class="title">注意</div>
-        <p>1、卡密可通过微信搜索 "AT搜题" 免费获取</p>
-      </div>
-    </div>
-    <div v-if="configStore.activeTab === 'keys'" class="keys">
-      <div class="validate-key">
-        <el-input
-          v-model.trim="configStore.key"
-          style="width: 100%"
-          placeholder="输入卡密，在指南中查看卡密获取方式"
-          clearable
-          @input="keyInput"
-          @clear="clearKey"
-        />
-      </div>
-      <div class="topic">
-        <el-table
-          v-if="userInfoStore.questionList.length"
-          :data="userInfoStore.questionList"
-          style="width: 100%"
-          max-height="400px"
-        >
-          <el-table-column v-for="c in column" :key="c" v-bind="c" />
-        </el-table>
-        <el-empty v-else description="无需答题" />
+      <!-- <div class="start-parse" @click="getFunc">
+        <el-icon :size="18"><VideoPlay /></el-icon>开始解析
+      </div> -->
+      <div
+        class="log-generation body-box"
+        v-if="configStore.activeTab !== 'protocol'"
+      >
+        <div class="card-title">
+          <el-icon :size="18"><Comment /></el-icon>
+          操作反馈
+        </div>
+        <div class="log-generation-content">
+          <el-alert
+            v-for="item in configStore.logData"
+            :key="item.time"
+            :title="item.value"
+            :type="item.type"
+            show-icon
+            :closable="false"
+            style="margin-bottom: 8px; border-radius: 4px"
+            ><template #title>
+              <span class="value">{{ item.value }}</span>
+            </template>
+          </el-alert>
+        </div>
       </div>
     </div>
   </DraggableDialog>
 </template>
 <style lang="scss" scoped>
 .tab-bar {
-  margin-bottom: 16px;
-}
-.log-generation {
-  max-height: 260px;
-  overflow-y: auto;
-  &::-webkit-scrollbar {
-    width: 3px;
-  }
-  .log-item {
-    border-bottom: 1px solid #ccc;
-    border-radius: 3px;
-    padding: 2px;
-    margin-bottom: 6px;
-    font-size: 12px;
-  }
-  .mr-6 {
-    margin-right: 6px;
-  }
-  .warning {
-    color: #e6a23c;
-  }
-  .error {
-    color: #dc3545;
-  }
-
-  .success {
-    color: #67c23a;
-  }
-
-  .default {
-    color: #909399;
-  }
-
-  .primary {
-    color: #409eff;
-  }
-}
-.settings-section {
+  width: 100%;
   display: flex;
   align-items: center;
-  .title {
-    width: 85px;
-    font-size: 12px;
-    font-weight: 400;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 8px;
+  box-sizing: border-box;
+  .tab-bar-item {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 4px;
+    text-align: center;
+    font-size: 14px;
+    font-family: Roboto;
+    font-weight: normal;
+    line-height: 21px;
+    text-align: center;
+    letter-spacing: 0px;
+    font-feature-settings: 'kern' on;
+    &:hover {
+      background-color: #e6f7ff;
+      color: #4a90e2;
+    }
+    &.active {
+      background-color: #e6f7ff;
+      color: #4a90e2;
+    }
   }
 }
+.content-body {
+  padding: 16px;
+  box-sizing: border-box;
+  background-color: #f5f5f5;
+}
+.body-box {
+  border-radius: 8px;
+  opacity: 1;
+  /* 自动布局 */
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  gap: 0px 10px;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.001), rgba(0, 0, 0, 0.001)),
+    #ffffff;
+  box-shadow: 0px 1px 3px 0px rgba(0, 0, 0, 0.1);
+}
+.card-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: Roboto;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 21px;
+  letter-spacing: 0px;
+
+  font-feature-settings: 'kern' on;
+  color: #333333;
+  margin-bottom: 8px;
+}
+.start-parse {
+  /* 自动布局子元素 */
+  cursor: pointer;
+  height: 40px;
+  line-height: 40px;
+  border-radius: 4px;
+  opacity: 1;
+  margin: 18px 0;
+  /* 自动布局 */
+
+  background: #3b82f6;
+
+  /* 自动布局子元素 */
+
+  font-family: Roboto;
+  font-size: 14px;
+  font-weight: 500;
+
+  text-align: center;
+  letter-spacing: 0px;
+
+  font-feature-settings: 'kern' on;
+  color: #ffffff;
+}
+.log-generation {
+  box-sizing: border-box;
+  box-shadow: 0px 1px 3px 0px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.001), rgba(0, 0, 0, 0.001)),
+    #ffffff;
+  margin-top: 16px;
+  .log-generation-content {
+    width: 100%;
+    max-height: 120px;
+    overflow-y: auto;
+    &::-webkit-scrollbar {
+      width: 2px;
+    }
+  }
+  .value {
+    color: #000000;
+    font-size: 13px;
+    font-weight: normal;
+    line-height: 20px;
+    letter-spacing: 0px;
+    font-feature-settings: 'kern' on;
+    font-family: Roboto;
+  }
+}
+
+.settings-main {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.settings-section {
+  width: 100%;
+  display: flex;
+  align-items: center;
+
+  .settings-switch {
+    margin-left: auto;
+  }
+  .title {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    .title-text {
+      height: 24px;
+      opacity: 1;
+      background: rgba(0, 0, 0, 0);
+      opacity: 1;
+      font-family: Roboto;
+      font-size: 16px;
+      font-weight: normal;
+      line-height: 24px;
+      letter-spacing: 0px;
+      font-feature-settings: 'kern' on;
+      color: #000000;
+    }
+    .sub-title {
+      opacity: 1;
+      font-family: Roboto;
+      font-size: 12px;
+      font-weight: normal;
+      line-height: 18px;
+      letter-spacing: 0px;
+
+      font-feature-settings: 'kern' on;
+      color: #666666;
+    }
+  }
+}
+
 .guide {
+  .guide-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 8px;
+    .guide-content-item {
+      display: flex;
+      align-items: start;
+      gap: 10px;
+      .guide-content-index {
+        width: 20px;
+        height: 20px;
+        text-align: center;
+        line-height: 20px;
+        border-radius: 50%;
+        background-color: #e6f7ff;
+        color: #53aeed;
+      }
+      .guide-content-content {
+        flex: 1;
+        color: #333333;
+        font-size: 13px;
+      }
+    }
+  }
   .section {
     p {
       line-height: 24px;
@@ -979,7 +1167,6 @@ onMounted(() => {
   }
 }
 .keys {
-  width: 500px;
   .userinfo {
     margin: 20px 0 0;
 
@@ -993,6 +1180,7 @@ onMounted(() => {
     gap: 10px;
   }
   .key-btn {
+    cursor: pointer;
     width: 100%;
     margin: 18px auto;
   }

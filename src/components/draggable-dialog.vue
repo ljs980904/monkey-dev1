@@ -3,42 +3,48 @@
     class="draggable-dialog"
     :style="{
       transform: `translate(${position.x}px, ${position.y}px)`,
-      width: isExpand ? width : '120px',
     }"
   >
-    <div
-      class="draggable-title"
-      :class="{ isexpand: isExpand }"
-      @mousedown="startDrag"
-    >
+    <div class="draggable-title" @mousedown="startDrag">
       <div class="header-flex">
-        <div class="avatar-name" v-show="isExpand">
+        <div class="avatar-name">
           <img :src="aiIcon" alt="Avatar" class="avatar" />
-          <div class="header-title">{{ title }}</div>
-          <el-tooltip placement="top">
-            <template #content>
-              <span>请使用新最新版、避免使用旧版本</span></template
-            >
+          <span class="title">{{ title }}</span>
+          <el-tooltip
+            placement="bottom"
+            content="请使用新最新版、避免使用旧版本"
+          >
             <img :src="tips" alt="" class="tips" srcset="" />
           </el-tooltip>
         </div>
       </div>
+      <div class="header-settings">
+        <el-tooltip
+          :content="isMinimize ? '最大化' : '最小化'"
+          placement="bottom"
+        >
+          <el-icon :size="18" color="#ffffff" @click="minimize">
+            <Minus v-if="!isMinimize" />
+            <FullScreen v-if="isMinimize" />
+          </el-icon>
+        </el-tooltip>
+      </div>
     </div>
-    <div class="dialog-content" v-if="isExpand">
+    <div class="main-content" v-if="!isMinimize">
       <slot></slot>
     </div>
   </div>
 </template>
 
 <script setup>
+import { Minus, FullScreen } from '@element-plus/icons-vue';
 import aiIcon from '../assets/images/ai-icon.jpg';
-// import fullscreen from '../assets/images/fullscreen-shrink2x.png';
-// import expand from '../assets/images/fullscreen-expand2x.png';
 import tips from '../assets/svg/tips.svg';
+
 const props = defineProps({
   title: {
     type: String,
-    default: 'AT 助手',
+    default: '助手',
   },
   width: {
     type: String,
@@ -58,14 +64,14 @@ const props = defineProps({
     validator: (value) => ['both', 'x', 'y', 'none'].includes(value),
   },
 });
-const showIcon = ref(1);
+// const showIcon = ref(1);
 const position = ref({ x: 0, y: 0 });
 const isDragging = ref(false);
 const startPos = ref({ x: 0, y: 0 });
 const dragStartOffset = ref({ x: 0, y: 0 });
 const windowSize = ref({ width: 0, height: 0 });
-
-const isExpand = computed(() => showIcon.value === 1);
+const isMinimize = ref(false);
+// const isExpand = computed(() => showIcon.value === 1);
 
 const updateWindowSize = () => {
   windowSize.value = {
@@ -117,7 +123,9 @@ const stopDrag = () => {
   document.removeEventListener('mousemove', onDrag);
   document.removeEventListener('mouseup', stopDrag);
 };
-
+const minimize = () => {
+  isMinimize.value = !isMinimize.value;
+};
 onMounted(() => {
   updateWindowSize();
   window.addEventListener('resize', updateWindowSize);
@@ -149,6 +157,8 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 .draggable-dialog {
+  width: 400px;
+
   position: fixed;
   top: 0;
   left: 0;
@@ -157,19 +167,14 @@ onUnmounted(() => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   overflow: hidden;
   z-index: 1000;
-  padding: 10px 14px;
+  // padding: 10px 14px;
   .icon {
     width: 16px;
     height: 16px;
     margin-left: auto;
     cursor: pointer;
   }
-  .tips {
-    width: 16px;
-    height: 16px;
-    margin-left: 4px;
-    cursor: pointer;
-  }
+
   .header-flex {
     display: flex;
     align-items: center;
@@ -181,23 +186,52 @@ onUnmounted(() => {
   }
   .draggable-title {
     cursor: move;
-
+    /* 自动布局 */
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    height: 56px;
+    row-gap: 0px;
+    flex-wrap: wrap;
+    align-content: center;
+    background: #4a90e2;
     .avatar-name {
       display: flex;
       align-items: center;
+
       .avatar {
-        width: 24px;
-        height: 24px;
+        width: 28px;
+        height: 28px;
         border-radius: 50%;
-        margin-right: 5px;
+        margin-left: 16px;
       }
-      .header-title {
-        height: 30px;
-        line-height: 30px;
-        font-size: 12px;
+      .title {
+        font-size: 18px;
         font-weight: bold;
+        font-family: Roboto;
+        font-weight: 600;
+        letter-spacing: 0px;
+        font-feature-settings: 'kern' on;
+        color: #ffffff;
+        margin: 4px 4px 0 16px;
+      }
+      .tips {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
       }
     }
+    .header-settings {
+      margin-left: auto;
+      cursor: pointer;
+      font-size: 14px;
+      color: #ffffff;
+      margin-right: 16px;
+    }
+  }
+  .main-content {
+    background: rgba(0, 0, 0, 0);
   }
 }
 </style>
