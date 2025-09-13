@@ -10,15 +10,15 @@
         <div class="avatar-name">
           <img :src="aiIcon" alt="Avatar" class="avatar" />
           <span class="title">{{ title }}</span>
-          <el-tooltip
-            placement="bottom"
-            content="请使用新最新版、避免使用旧版本"
-          >
-            <img :src="tips" alt="" class="tips" srcset="" />
-          </el-tooltip>
         </div>
       </div>
       <div class="header-settings">
+        <el-tooltip
+          placement="bottom"
+          content="请及时更新最新版、避免使用旧版本导致无法使用"
+        >
+          <img :src="tips" alt="" class="tips" srcset="" />
+        </el-tooltip>
         <el-tooltip
           :content="isMinimize ? '最大化' : '最小化'"
           placement="bottom"
@@ -167,6 +167,7 @@ onUnmounted(() => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   overflow: hidden;
   z-index: 1000;
+
   // padding: 10px 14px;
   .icon {
     width: 16px;
@@ -216,11 +217,6 @@ onUnmounted(() => {
         color: #ffffff;
         margin: 4px 4px 0 16px;
       }
-      .tips {
-        width: 18px;
-        height: 18px;
-        cursor: pointer;
-      }
     }
     .header-settings {
       margin-left: auto;
@@ -228,6 +224,15 @@ onUnmounted(() => {
       font-size: 14px;
       color: #ffffff;
       margin-right: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      .tips {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        margin-left: auto;
+      }
     }
   }
   .main-content {

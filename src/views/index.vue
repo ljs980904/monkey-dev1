@@ -311,20 +311,20 @@ class CxQuestionHandler extends BaseQuestionHandler {
               question.answer = answer;
               this.fillQuestion(question);
               addLog({
-                value: `第${index + 1}道题搜索成功，剩余次数：${count}`,
+                value: `第${index + 1}道题、搜索成功，剩余次数：${count}`,
                 type: 'success',
               });
               this.correctNum += 1;
             } else {
               addLog({
-                value: `第${index + 1}道题没有找到答案`,
+                value: `第${index + 1}道题、题库为空`,
                 type: 'warning',
               });
             }
             userInfoStore.questionList = [question];
           } catch (error) {
             addLog({
-              value: `第${index + 1}道题搜索失败`,
+              value: `第${index + 1}道题、搜索失败`,
               type: 'error',
             });
           } finally {
@@ -339,7 +339,7 @@ class CxQuestionHandler extends BaseQuestionHandler {
       if (this.questions.length === 0) {
         addLog({
           value: `未解析到题目，请进入正确页面`,
-          type: 'danger',
+          type: 'error',
         });
       }
       return Promise.resolve((this.correctNum / this.questions.length) * 100);
@@ -579,7 +579,7 @@ const processWork = async (iframe, iframeDocument, iframeWindow) => {
       if (correctRate < configStore.otherParams.rate) {
         addLog({
           value: `正确率小于${configStore.otherParams.rate}%，暂存`,
-          type: 'danger',
+          type: 'error',
         });
 
         await iframeWindow.noSubmit();
@@ -653,7 +653,7 @@ const watchIframe = (documentElement) => {
         if (!nextBtn || nextBtn.style.display === 'none') {
           addLog({
             value: `已经到达最后一章节，无法跳转`,
-            type: 'danger',
+            type: 'error',
           });
         } else {
           await sleep(2);
@@ -664,7 +664,7 @@ const watchIframe = (documentElement) => {
       } else {
         addLog({
           value: `已经关闭自动下一章节，在设置里可更改`,
-          type: 'danger',
+          type: 'error',
         });
       }
     });
@@ -723,7 +723,7 @@ const useCxWorkLogicFunc = async () => {
 const useCxExamLogicFunc = async () => {
   addLog({
     value: `进入新版考试页面，开始准备答题`,
-    type: 'success',
+    type: 'warning',
   });
   addLog({
     value: `正在解析题目, 请等待`,
@@ -733,14 +733,14 @@ const useCxExamLogicFunc = async () => {
   if (configStore.platformParams.cx.autoNext) {
     addLog({
       value: `自动切换已开启，正在前往下一题`,
-      type: 'success',
+      type: 'warning',
     });
     await sleep(configStore.otherParams.timeInterval);
     _unsafeWindow.getTheNextQuestion(1);
   } else {
     addLog({
       value: `已经关闭自动切换，在设置里可更改`,
-      type: 'danger',
+      type: 'warning',
     });
   }
 };
