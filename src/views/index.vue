@@ -105,7 +105,7 @@ const waitIframeLoad = async (iframe) => {
 // 处理单个 iframe
 const processIframe = async (iframe) => {
   const iframeSrc = iframe.src;
-  console.log('iframeSrc=========', iframeSrc);
+
   const iframeDocument = iframe.contentDocument;
   const iframeWindow = iframe.contentWindow;
   // 检查 iframe 是否有效
@@ -339,7 +339,7 @@ class CxQuestionHandler extends BaseQuestionHandler {
       if (this.questions.length === 0) {
         addLog({
           value: `未解析到题目，请进入正确页面`,
-          type: 'error',
+          type: 'warning',
         });
       }
       return Promise.resolve((this.correctNum / this.questions.length) * 100);
@@ -370,10 +370,8 @@ class CxQuestionHandler extends BaseQuestionHandler {
 
                 optionElement == null ? void 0 : optionElement.click();
               } else if (['ks'].includes(this.type)) {
-                console.log('key');
-
                 const optionElement = question.options[key];
-                console.log(optionElement);
+
                 if (
                   optionElement.querySelector('.check_answer') ||
                   optionElement.querySelector('.check_answer_dx')
@@ -398,7 +396,6 @@ class CxQuestionHandler extends BaseQuestionHandler {
           }
         });
       } else if (question.type === '3') {
-        debugger;
         let answer = 'true';
         if (
           question.answer[0].match(/(^|,)(正确|是|对|√|T|ri|right|true)(,|$)/)
@@ -835,7 +832,7 @@ onMounted(() => {
           <el-input
             v-model.trim="configStore.key"
             style="width: 100%"
-            placeholder="输入卡密、在指南中查看卡密获取方式"
+            placeholder="输入卡密、获取方式在帮助中查看"
             clearable
             @clear="clearKey"
           />

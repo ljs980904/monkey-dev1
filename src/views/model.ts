@@ -132,7 +132,6 @@ export const simulateRequest = async (url, params, _self, keys) => {
       typeText: types[params.type],
       key: keys,
     });
-    console.log(data);
 
     let { author, version } = GM_info.script;
     request(
@@ -146,11 +145,9 @@ export const simulateRequest = async (url, params, _self, keys) => {
       },
       data,
       (response) => {
-        debugger;
         resolve(response);
       },
       (error) => {
-        debugger;
         resolve(error); // 即使出错，也继续执行
       }
     );

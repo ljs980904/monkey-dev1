@@ -47,7 +47,7 @@ export default defineConfig({
       userscript: {
         name: '超星学习通--网课小助手|修复视频播放|自动跳转任务点|自动答题|超高题库覆盖率|逐渐支持更多平台',
         namespace: 'helper',
-        version: '1.0.1',
+        version: '1.0.2',
         description:
           '学习助手-支持学习通，目前已完成：视频自动播放，自动切换任务点，章节测试，作业自动完成，自动保存，使用脚本进入对应平台的页面',
         author: 'helper',
