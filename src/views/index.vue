@@ -51,8 +51,7 @@ const configStore = reactive({
   workUrl: window.location.href,
   key: userInfoStore.key, // keys
   validatedKeys: false, // 是否验证
-  // url: 'https://autohelper.top/prod-api/question/dpQuestion',
-  url: 'http://localhost:8080/question/dpQuestion',
+  url: 'https://autohelper.top/prod-api/question/dpQuestion',
 });
 
 const column = [
