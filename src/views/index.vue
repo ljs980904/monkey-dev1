@@ -779,6 +779,10 @@ const validateKey = () => {
     return;
   }
   userInfoStore.key = configStore.key;
+  addLog({
+    value: `验证成功`,
+    type: 'success',
+  });
 };
 
 const clearKey = () => {
@@ -924,10 +928,6 @@ onMounted(() => {
           </div>
         </div>
       </template>
-
-      <!-- <div class="start-parse" @click="getFunc">
-        <el-icon :size="18"><VideoPlay /></el-icon>开始解析
-      </div> -->
       <div
         class="log-generation body-box"
         v-if="configStore.activeTab !== 'protocol'"
