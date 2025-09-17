@@ -8,7 +8,7 @@
     <div class="draggable-title" @mousedown="startDrag">
       <div class="header-flex">
         <div class="avatar-name">
-          <img :src="aiIcon" alt="Avatar" class="avatar" />
+          <img :src="avatar" alt="" class="avatar" />
           <span class="title">{{ title }}</span>
         </div>
       </div>
@@ -38,13 +38,12 @@
 
 <script setup>
 import { Minus, FullScreen } from '@element-plus/icons-vue';
-import aiIcon from '../assets/images/ai-icon.jpg';
 import tips from '../assets/svg/tips.svg';
-
+import avatar from '../assets/images/avatar.png';
 const props = defineProps({
   title: {
     type: String,
-    default: '助手',
+    default: '网课助手',
   },
   width: {
     type: String,
@@ -78,24 +77,38 @@ const updateWindowSize = () => {
     width: window.innerWidth,
     height: window.innerHeight,
   };
-  // 新增：窗口尺寸更新时保持居中（可选）
-  const dialogWidth = parseInt(props.width) || 0;
-  const dialogHeight = parseInt(props.height) || 0;
+  // 窗口尺寸更新时保持居中（可选）
+  const dialogWidth = parseInt(props.width) || 400;
+  const dialogHeight = parseInt(props.height) || 300;
   position.value.x = Math.max(0, (windowSize.value.width - dialogWidth) / 2);
   position.value.y = Math.max(0, (windowSize.value.height - dialogHeight) / 2);
 };
 
 const startDrag = (e) => {
   if (props.axis === 'none') return;
+
+  // 防止事件冒泡和默认行为
+  e.preventDefault();
+  e.stopPropagation();
+
   isDragging.value = true;
   startPos.value = { x: e.clientX, y: e.clientY };
   dragStartOffset.value = { x: position.value.x, y: position.value.y };
-  document.addEventListener('mousemove', onDrag);
-  document.addEventListener('mouseup', stopDrag);
+
+  // 添加事件监听器，使用 passive: false 确保可以调用 preventDefault
+  document.addEventListener('mousemove', onDrag, { passive: false });
+  document.addEventListener('mouseup', stopDrag, { passive: false });
+
+  // 添加选择禁用，防止拖拽时选中文本
+  document.body.style.userSelect = 'none';
+  document.body.style.cursor = 'grabbing';
 };
 
 const onDrag = (e) => {
   if (!isDragging.value) return;
+
+  // 防止默认行为
+  e.preventDefault();
 
   let dx = e.clientX - startPos.value.x;
   let dy = e.clientY - startPos.value.y;
@@ -118,20 +131,34 @@ const onDrag = (e) => {
   position.value = { x: newX, y: newY };
 };
 
-const stopDrag = () => {
+const stopDrag = (e) => {
+  if (!isDragging.value) return;
+
   isDragging.value = false;
   document.removeEventListener('mousemove', onDrag);
   document.removeEventListener('mouseup', stopDrag);
+
+  // 恢复样式
+  document.body.style.userSelect = '';
+  document.body.style.cursor = '';
+
+  // 防止事件冒泡
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
 };
+
 const minimize = () => {
   isMinimize.value = !isMinimize.value;
 };
+
 onMounted(() => {
   updateWindowSize();
   window.addEventListener('resize', updateWindowSize);
-  // 新增：初始化居中计算
-  const dialogWidth = parseInt(props.width) || 0;
-  const dialogHeight = parseInt(props.height) || 0;
+  // 初始化居中计算
+  const dialogWidth = parseInt(props.width) || 400;
+  const dialogHeight = parseInt(props.height) || 300;
   position.value = {
     x: (windowSize.value.width - dialogWidth) / 2,
     y: (windowSize.value.height - dialogHeight) / 2,
@@ -152,6 +179,12 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', updateWindowSize);
+  // 清理事件监听器，防止内存泄漏
+  document.removeEventListener('mousemove', onDrag);
+  document.removeEventListener('mouseup', stopDrag);
+  // 恢复样式
+  document.body.style.userSelect = '';
+  document.body.style.cursor = '';
 });
 </script>
 
@@ -202,9 +235,8 @@ onUnmounted(() => {
       align-items: center;
 
       .avatar {
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
+        width: 30px;
+        height: 32px;
         margin-left: 16px;
       }
       .title {

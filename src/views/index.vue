@@ -845,10 +845,9 @@ onMounted(() => {
               <el-icon :size="18" color="#4a90e2"><List /></el-icon>题目列表
             </div>
             <el-table
-              v-if="userInfoStore.questionList.length"
               :data="userInfoStore.questionList"
               style="width: 100%"
-              :show-header="false"
+              empty-text="暂无题目"
             >
               <el-table-column v-for="c in column" :key="c" v-bind="c" />
             </el-table>
