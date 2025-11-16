@@ -9,8 +9,19 @@ import {
   Notebook,
   Warning,
 } from '@element-plus/icons-vue';
+import {
+  ElIcon,
+  ElAlert,
+  ElTable,
+  ElTableColumn,
+  ElInput,
+  ElSwitch,
+  ElInputNumber,
+  ElCheckbox,
+} from 'element-plus';
+import { reactive, onMounted } from 'vue';
 import useUserInfoStore from '../stores/user'; //引入仓库
-import DraggableDialog from '../components/draggable-dialog.vue';
+import DraggableDialog from '../components/draggableDialog.vue';
 import { crackFont } from '../utils/crack-font';
 import { sleep } from '../utils';
 import {
@@ -34,6 +45,7 @@ const configStore = reactive({
   },
   // 入参
   otherParams: {
+    interval: false, // 答题后切换间隔
     timeInterval: 3, // 切换、答题间隔，单位秒
     rate: 85, // 正确率达到多少自动提交
     name: '其他参数',
@@ -860,27 +872,27 @@ onMounted(() => {
             <el-icon :size="18" color="#4a90e2"><Operation /></el-icon>功能配置
           </div>
           <div class="settings-main">
+            <div>
+              <el-checkbox
+                v-model="configStore.platformParams.cx.answeringMode"
+                label="只答题，不做其他"
+                size="small"
+              />
+              <!-- <el-checkbox
+                v-model="configStore.platformParams.cx.autoNext"
+                label="自动进入下一题"
+                size="small"
+              /> -->
+            </div>
             <div
               v-for="setting in settings"
               class="settings-section"
               :key="setting.value"
             >
               <div class="title">
-                <span class="title-text">{{ setting.name }}</span>
-                <span class="sub-title">{{ setting.desc }}</span>
+                <span class="title-text">{{ setting.desc }}</span>
+                <!-- <span class="sub-title">{{ setting.desc }}</span> -->
               </div>
-              <el-switch
-                v-if="setting.value === 'answeringMode'"
-                class="settings-switch"
-                v-model="configStore.platformParams.cx.answeringMode"
-                inline-prompt
-              />
-              <el-switch
-                v-if="setting.value === 'autoNext'"
-                class="settings-switch"
-                v-model="configStore.platformParams.cx.autoNext"
-                inline-prompt
-              />
               <el-input-number
                 v-if="setting.value === 'rate'"
                 class="settings-switch"
@@ -888,6 +900,14 @@ onMounted(() => {
                 v-bind="{ inputNumberAttr }"
                 :min="60"
                 :max="90"
+              />
+              <el-input-number
+                v-if="setting.value === 'interval'"
+                class="settings-switch"
+                v-model="configStore.otherParams.timeInterval"
+                v-bind="{ inputNumberAttr }"
+                :min="3"
+                :max="10"
               />
             </div>
           </div>
@@ -957,7 +977,6 @@ onMounted(() => {
 .tab-bar {
   width: 100%;
   display: flex;
-  align-items: center;
   gap: 8px;
   width: 100%;
   padding: 9px 8px;
@@ -973,16 +992,8 @@ onMounted(() => {
     border-radius: 4px;
     text-align: center;
     font-size: 14px;
-    font-family: Roboto;
-    font-weight: normal;
     line-height: 21px;
-    text-align: center;
-    letter-spacing: 0px;
-    font-feature-settings: 'kern' on;
-    &:hover {
-      background-color: #e6f7ff;
-      color: #4a90e2;
-    }
+    &:hover,
     &.active {
       background-color: #e6f7ff;
       color: #4a90e2;
@@ -990,7 +1001,7 @@ onMounted(() => {
   }
 }
 .content-body {
-  padding: 16px;
+  padding: 12px;
   box-sizing: border-box;
   background-color: #f5f5f5;
 }
@@ -1023,27 +1034,21 @@ onMounted(() => {
   margin-bottom: 8px;
 }
 .start-parse {
-  /* 自动布局子元素 */
   cursor: pointer;
   height: 40px;
   line-height: 40px;
   border-radius: 4px;
   opacity: 1;
   margin: 18px 0;
-  /* 自动布局 */
 
   background: #3b82f6;
 
-  /* 自动布局子元素 */
-
-  font-family: Roboto;
   font-size: 14px;
   font-weight: 500;
 
   text-align: center;
   letter-spacing: 0px;
 
-  font-feature-settings: 'kern' on;
   color: #ffffff;
 }
 .log-generation {
@@ -1075,13 +1080,12 @@ onMounted(() => {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 .settings-section {
   width: 100%;
   display: flex;
   align-items: center;
-
   .settings-switch {
     margin-left: auto;
   }
@@ -1089,16 +1093,14 @@ onMounted(() => {
     display: flex;
     flex-direction: column;
     gap: 4px;
-
     .title-text {
-      height: 24px;
       opacity: 1;
       background: rgba(0, 0, 0, 0);
       opacity: 1;
       font-family: Roboto;
-      font-size: 16px;
+      font-size: 14px;
       font-weight: normal;
-      line-height: 24px;
+
       letter-spacing: 0px;
       font-feature-settings: 'kern' on;
       color: #000000;
@@ -1121,7 +1123,7 @@ onMounted(() => {
   .guide-content {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
     margin-top: 8px;
     .guide-content-item {
       display: flex;

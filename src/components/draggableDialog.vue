@@ -6,27 +6,16 @@
     }"
   >
     <div class="draggable-title" @mousedown="startDrag">
-      <div class="header-flex">
-        <div class="avatar-name">
-          <img :src="avatar" alt="" class="avatar" />
-          <span class="title">{{ title }}</span>
-        </div>
+      <div class="avatar-name">
+        {{ title }}
       </div>
+
       <div class="header-settings">
         <el-tooltip
           placement="bottom"
           content="请及时更新最新版、避免使用旧版本导致无法使用"
         >
           <img :src="tips" alt="" class="tips" srcset="" />
-        </el-tooltip>
-        <el-tooltip
-          :content="isMinimize ? '最大化' : '最小化'"
-          placement="bottom"
-        >
-          <el-icon :size="18" color="#ffffff" @click="minimize">
-            <Minus v-if="!isMinimize" />
-            <FullScreen v-if="isMinimize" />
-          </el-icon>
         </el-tooltip>
       </div>
     </div>
@@ -37,9 +26,11 @@
 </template>
 
 <script setup>
+import { ref, onMounted, onUnmounted } from 'vue';
+import { ElTooltip, ElIcon } from 'element-plus';
 import { Minus, FullScreen } from '@element-plus/icons-vue';
 import tips from '../assets/svg/tips.svg';
-import avatar from '../assets/images/avatar.png';
+
 const props = defineProps({
   title: {
     type: String,
@@ -191,7 +182,6 @@ onUnmounted(() => {
 <style lang="scss" scoped>
 .draggable-dialog {
   width: 400px;
-
   position: fixed;
   top: 0;
   left: 0;
@@ -201,69 +191,31 @@ onUnmounted(() => {
   overflow: hidden;
   z-index: 1000;
 
-  // padding: 10px 14px;
-  .icon {
-    width: 16px;
-    height: 16px;
-    margin-left: auto;
-    cursor: pointer;
-  }
-
-  .header-flex {
-    display: flex;
-    align-items: center;
-  }
-  .isexpand {
-    margin-bottom: 8px;
-    border-bottom: 0.5px solid #ccc;
-    padding-bottom: 4px;
-  }
   .draggable-title {
     cursor: move;
     /* 自动布局 */
     display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
     height: 56px;
-    row-gap: 0px;
-    flex-wrap: wrap;
-    align-content: center;
+    line-height: 56px;
     background: #4a90e2;
     .avatar-name {
-      display: flex;
-      align-items: center;
-
-      .avatar {
-        width: 30px;
-        height: 32px;
-        margin-left: 16px;
-      }
-      .title {
-        font-size: 18px;
-        font-weight: bold;
-        font-family: Roboto;
-        font-weight: 600;
-        letter-spacing: 0px;
-        font-feature-settings: 'kern' on;
-        color: #ffffff;
-        margin: 4px 4px 0 16px;
-      }
+      font-size: 18px;
+      font-weight: bold;
+      font-family: Roboto;
+      font-weight: 600;
+      letter-spacing: 0px;
+      font-feature-settings: 'kern' on;
+      color: #ffffff;
+      margin: 4px 4px 0 16px;
     }
     .header-settings {
-      margin-left: auto;
-      cursor: pointer;
-      font-size: 14px;
       color: #ffffff;
-      margin-right: 16px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      margin-top: 20px;
       .tips {
         width: 18px;
         height: 18px;
         cursor: pointer;
-        margin-left: auto;
+        font-size: 14px;
       }
     }
   }

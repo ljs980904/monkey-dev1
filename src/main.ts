@@ -1,20 +1,16 @@
 import { createApp } from 'vue';
-import './assets/css/style.css';
+import ElementPlus from 'element-plus';
 import 'element-plus/dist/index.css';
-import pinia from './stores'; //引入
+import piniaStore from './stores'; //引入
 import App from './App.vue';
+const app = createApp(App);
 
-const initApp = () => {
-  const app = createApp(App);
-  app.use(pinia);
-  // 创建挂载点并挂载
-  app.mount(
-    (() => {
-      const app = document.createElement('div');
-      app.className = 'script-div';
-      document.body.append(app);
-      return app;
-    })()
-  );
-};
-window.addEventListener('load', initApp);
+app.use(ElementPlus);
+app.use(piniaStore);
+createApp(App).mount(
+  (() => {
+    const app = document.createElement('div');
+    document.body.append(app);
+    return app;
+  })()
+);

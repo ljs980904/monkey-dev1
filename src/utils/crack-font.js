@@ -16,7 +16,7 @@
 // @license      MIT
 // ==/UserScript==
 
-import { GM_getResourceText } from '$';
+// import { GM_getResourceText } from '$';
 import * as typr from '@fredli74/typr';
 import md5 from 'md5';
 export const crackFont = async (iframeDocument) => {
