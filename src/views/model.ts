@@ -26,57 +26,63 @@ export const tabBars = [
 ];
 
 export const settings = [
-  {
-    name: '自动下一题',
-    desc: '开启后，自动进入下一题',
-    value: 'autoNext',
-    type: 'switch',
-  },
-  {
-    name: '答题模式',
-    desc: '只答题，不做其他',
-    value: 'answeringMode',
-    type: 'switch',
-  },
+  // {
+  //   name: '自动下一题',
+  //   desc: '开启后，自动进入下一题',
+  //   value: 'autoNext',
+  //   type: 'switch',
+  // },
+  // {
+  //   name: '答题模式',
+  //   desc: '只答题，不做其他',
+  //   value: 'answeringMode',
+  //   type: 'switch',
+  // },
   {
     name: '答题正确率',
-    desc: '开启后，满足答题率后自动提交',
+    desc: '满足答题率后自动提交',
     value: 'rate',
     type: 'input',
+  },
+  {
+    name: '答题后切换间隔',
+    desc: '答题、切换间隔(秒)',
+    value: 'interval',
+    type: 'inputNumber',
   },
 ];
 
 export const guide = [
+  // {
+  //   index: 1,
+  //   content: '本脚本完全免费，无任何付费项目',
+  // },
   {
     index: 1,
-    content: '本脚本完全免费，无任何付费项目',
-  },
-  {
-    index: 2,
     content: '使用第三方题库资源，内容准确率非100%，仅供参考',
   },
   {
-    index: 3,
+    index: 2,
     content: '请先打开需要处理的课程视频或作业页面',
   },
   {
-    index: 4,
+    index: 3,
     content: '根据实际需求，配置相应的自动化选项',
   },
   {
-    index: 5,
+    index: 4,
     content: '进入答题页面后，等待解析完成后自动进入答题流程',
   },
   {
-    index: 6,
+    index: 5,
     content: '自动答题需要填写卡密，获取方法如下',
   },
   {
-    index: 7,
+    index: 6,
     content: '微信搜索「AT搜题」公众号，免费获取卡密',
   },
   {
-    index: 8,
+    index: 7,
     content: '点击「答题」标签页 → 输入卡密并验证 → 刷新页面',
   },
 ];
