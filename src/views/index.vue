@@ -15,11 +15,10 @@ import {
   ElTable,
   ElTableColumn,
   ElInput,
-  ElSwitch,
   ElInputNumber,
   ElCheckbox,
 } from 'element-plus';
-import { reactive, onMounted } from 'vue';
+import { reactive, onMounted, onUnmounted } from 'vue';
 import useUserInfoStore from '../stores/user'; //引入仓库
 import DraggableDialog from '../components/draggableDialog.vue';
 import { crackFont } from '../utils/crack-font';
@@ -32,6 +31,7 @@ import {
   inputNumberAttr,
   protocol,
 } from './model';
+
 const userInfoStore = useUserInfoStore();
 
 // 配置工具
@@ -41,6 +41,7 @@ const configStore = reactive({
     cx: {
       autoNext: true, // 自动切换
       answeringMode: false, // 只答题
+      playbackRate: 1, // 播放速度
     },
   },
   // 入参
@@ -50,20 +51,11 @@ const configStore = reactive({
     rate: 85, // 正确率达到多少自动提交
     name: '其他参数',
   },
-  rate: 80, // 完成率
-  currentPageTabs: [], // 当前任务章节 tab
-  nowIdx: 0, // 当前tab索引
   title: 'AT助手',
   logData: [], // 日志
-  isfalse: false,
-  sizes: 'small',
   activeTab: 'settings',
-  // avatarSrc:
-  //   'https://public.readdy.ai/ai/img_res/2d58579252345596c10002ce85d4f6f8.jpg',
-  workUrl: window.location.href,
-  key: userInfoStore.key, // keys
-  validatedKeys: false, // 是否验证
-  url: 'https://autohelper.top/prod-api/question/dpQuestion',
+  key: '', // keys
+  url: 'https://autohelper.top/tiku/question/dpQuestion',
 });
 
 const column = [
@@ -77,6 +69,7 @@ const column = [
     width: '140',
   },
 ];
+
 const __defProp = Object.defineProperty;
 const __defNormalProp = (obj, key, value) =>
   key in obj
@@ -113,10 +106,10 @@ const waitIframeLoad = async (iframe) => {
     }, 500);
   });
 };
+
 // 处理单个 iframe
 const processIframe = async (iframe) => {
   const iframeSrc = iframe.src;
-
   const iframeDocument = iframe.contentDocument;
   const iframeWindow = iframe.contentWindow;
   // 检查 iframe 是否有效
@@ -154,19 +147,19 @@ const processIframe = async (iframe) => {
       : '';
     if (ansJobIcon) {
       if (iframeSrc.includes('video')) {
-        return processMedia('video', iframeDocument);
+        return await processMedia('video', iframeDocument);
       } else if (iframeSrc.includes('audio')) {
-        return processMedia('audio', iframeDocument);
+        return await processMedia('audio', iframeDocument);
       } else if (
         ['ppt', 'doc', 'pptx', 'docx', 'pdf'].some((type) =>
           iframeSrc.includes('modules/' + type)
         )
       ) {
-        return processPpt(iframeWindow);
+        return await processPpt(iframeWindow);
       } else if (
         ['innerbook'].some((type) => iframeSrc.includes('modules/' + type))
       ) {
-        return processBook(iframeWindow);
+        return await processBook(iframeWindow);
       }
     }
   }
@@ -183,7 +176,7 @@ const processMedia = async (mediaType, iframeDocument) => {
       value: `正在尝试播放${mediaType}，请稍等`,
       type: 'warning',
     });
-    await sleep(1);
+
     let isExecuted = false;
     addLog({
       value: `播放成功`,
@@ -192,12 +185,16 @@ const processMedia = async (mediaType, iframeDocument) => {
     const intervalId = setInterval(async () => {
       const mediaElement =
         iframeDocument.documentElement.querySelector(mediaType);
+      if (mediaElement) {
+        mediaElement.playbackRate =
+          configStore.platformParams.cx.playbackRate || 1;
+      }
       if (mediaElement && !isExecuted) {
         await mediaElement.pause();
         mediaElement.muted = true;
         await mediaElement.play();
         const listener = async () => {
-          await sleep(3);
+          await sleep(configStore.platformParams.cx.timeInterval);
           await mediaElement.play();
         };
         mediaElement.addEventListener('pause', listener);
@@ -218,12 +215,17 @@ const processMedia = async (mediaType, iframeDocument) => {
 
 // 处理任务点：PPT/文档
 const processPpt = async (iframeWindow) => {
+  // console.log('iframeWindow', iframeWindow);
   // addLog({
   //   value: `处理 PPT/文档任务点`,
   //   type: 'info',
   // });
-  // const pptWindow =
-  //   iframeWindow.document.querySelector('#panView').contentWindow;
+  // debugger;
+  // const pptWindow = iframeWindow.document
+  //   .querySelector('#panView')
+  //   .contentWindow.querySelector('.fileBox');
+  // // contentWindow
+
   // await pptWindow.scrollTo({
   //   top: pptWindow.document.body.scrollHeight,
   //   behavior: 'smooth',
@@ -316,23 +318,30 @@ class CxQuestionHandler extends BaseQuestionHandler {
               _unsafeWindow,
               configStore.key
             );
-            const { answer, count } = resp;
-            question.source = resp.source;
-            if (answer?.length) {
-              question.answer = answer;
-              this.fillQuestion(question);
-              addLog({
-                value: `第${index + 1}道题、搜索成功，剩余次数：${count}`,
-                type: 'success',
-              });
-              this.correctNum += 1;
+            if (resp.code == 200) {
+              const { answer, count } = resp.data;
+              question.source = resp.source;
+              if (answer?.length) {
+                question.answer = answer;
+                this.fillQuestion(question);
+                addLog({
+                  value: `第${index + 1}道题、搜索成功，剩余次数：${count}`,
+                  type: 'success',
+                });
+                this.correctNum += 1;
+              } else {
+                addLog({
+                  value: `没有找到答案`,
+                  type: 'warning',
+                });
+              }
+              userInfoStore.questionList = [question];
             } else {
               addLog({
-                value: `第${index + 1}道题、题库为空`,
-                type: 'warning',
+                value: resp.msg,
+                type: 'error',
               });
             }
-            userInfoStore.questionList = [question];
           } catch (error) {
             addLog({
               value: `第${index + 1}道题、搜索失败`,
@@ -571,7 +580,7 @@ const processWork = async (iframe, iframeDocument, iframeWindow) => {
 
       return resolve();
     }
-    crackFont(iframeDocument); // 解密
+    await crackFont(iframeDocument); // 解密
     addLog({
       value: `题目列表获取成功`,
       type: 'success',
@@ -641,41 +650,37 @@ const getAllNestedIframes = (documentElement) => {
 };
 
 // 主函数：遍历并处理所有 iframe
-const watchIframe = (documentElement) => {
+const watchIframe = async (documentElement) => {
   const iframes = getAllNestedIframes(documentElement);
   // 按顺序处理每个 iframe
-  iframes
-    .reduce((promiseChain, iframe) => {
-      return promiseChain.then(() => processIframe(iframe));
-    }, Promise.resolve())
-    .then(async () => {
-      addLog({
-        value: `本页任务点已全部完成，正前往下一章节`,
-        type: 'success',
-      });
-      await sleep(2);
+  await iframes.reduce(async (promiseChain, iframe) => {
+    // return promiseChain.then(() => processIframe(iframe));
+    await promiseChain;
+    await processIframe(iframe);
+  }, Promise.resolve());
 
-      // 检查是否需要跳转到下一章节
-      if (configStore.platformParams.cx.autoNext) {
-        const nextBtn = documentElement.querySelector('#prevNextFocusNext');
-        if (!nextBtn || nextBtn.style.display === 'none') {
-          addLog({
-            value: `已经到达最后一章节，无法跳转`,
-            type: 'error',
-          });
-        } else {
-          await sleep(2);
-          document
-            ?.querySelector('.jb_btn.jb_btn_92.fr.fs14.nextChapter')
-            ?.click();
-        }
-      } else {
-        addLog({
-          value: `已经关闭自动下一章节，在设置里可更改`,
-          type: 'error',
-        });
-      }
+  addLog({
+    value: `本页任务点已全部完成，正前往下一章节`,
+    type: 'success',
+  });
+  await sleep(configStore.otherParams.timeInterval);
+  // 检查是否需要跳转到下一章节
+  if (configStore.platformParams.cx.autoNext) {
+    const nextBtn = documentElement.querySelector('#prevNextFocusNext');
+    if (!nextBtn || nextBtn.style.display === 'none') {
+      addLog({
+        value: `已经到达最后一章节，无法跳转`,
+        type: 'error',
+      });
+    } else {
+      document?.querySelector('.jb_btn.jb_btn_92.fr.fs14.nextChapter')?.click();
+    }
+  } else {
+    addLog({
+      value: `已经关闭自动下一章节，在设置里可更改`,
+      type: 'error',
     });
+  }
 };
 
 const processIframeTask = () => {
@@ -697,7 +702,7 @@ const setupInterceptor = () => {
       currentUrl = window.location.href;
       processIframeTask();
     }
-  }, 5000);
+  }, 6000);
 };
 const useCxChapterFunc = () => {
   const init = () => {
@@ -769,7 +774,7 @@ const getFunc = () => {
     },
     // { keyword: '/stuExamWeb.html', logic: useZhsAnswerLogicFunc },
   ];
-  const executeLogicByUrl = () => {
+  const executeLogicByUrl = async () => {
     for (const { keyword, logic } of urlLogicPairs) {
       if (window.location.href.includes(keyword)) {
         logic();
@@ -779,17 +784,11 @@ const getFunc = () => {
     }
     configStore.isShow = false;
   };
+
   executeLogicByUrl();
 };
 
-const validateKey = () => {
-  if (!configStore.key) {
-    addLog({
-      value: `请先输入卡密`,
-      type: 'warning',
-    });
-    return;
-  }
+const validateKey = async () => {
   userInfoStore.key = configStore.key;
   addLog({
     value: `验证成功`,
@@ -800,9 +799,15 @@ const validateKey = () => {
 const clearKey = () => {
   userInfoStore.key = null;
 };
+const handleChange = (key) => {
+  userInfoStore[key] = !userInfoStore[key];
+  addLog({
+    value: `切换成功、如需生效请刷新页面`,
+    type: 'warning',
+  });
+};
 
-onMounted(() => {
-  userInfoStore.questionList = [];
+const initConfig = () => {
   addLog({
     value: `请不要多个脚本同时使用，会有脚本冲突问题`,
     type: 'warning',
@@ -815,7 +820,21 @@ onMounted(() => {
     value: `脚本加载成功，正在解析网页`,
     type: 'success',
   });
+  if (userInfoStore.key) {
+    configStore.key = userInfoStore.key;
+  }
+  configStore.platformParams.cx.autoNext = userInfoStore.autoNext || false;
+  configStore.platformParams.cx.answeringMode =
+    userInfoStore.answeringMode || false;
+  configStore.platformParams.cx.playbackRate = userInfoStore.playbackRate || 1;
+};
+onMounted(() => {
+  initConfig();
   getFunc();
+});
+
+onUnmounted(() => {
+  userInfoStore.questionList = [];
 });
 </script>
 <template>
@@ -824,7 +843,6 @@ onMounted(() => {
       <div
         v-for="tab in tabBars"
         :key="tab.value"
-        :size="configStore.sizes"
         @click="configStore.activeTab = tab.value"
         class="tab-bar-item"
         :class="[configStore.activeTab === tab.value ? 'active' : '']"
@@ -851,7 +869,7 @@ onMounted(() => {
             clearable
             @clear="clearKey"
           />
-          <div class="start-parse" @click="validateKey">验证卡密</div>
+          <div class="start-parse" @click="validateKey">卡密验证</div>
           <div style="margin-top: 16px">
             <div class="card-title">
               <el-icon :size="18" color="#4a90e2"><List /></el-icon>题目列表
@@ -877,12 +895,14 @@ onMounted(() => {
                 v-model="configStore.platformParams.cx.answeringMode"
                 label="只答题，不做其他"
                 size="small"
+                @change="handleChange('answeringMode')"
               />
-              <!-- <el-checkbox
+              <el-checkbox
                 v-model="configStore.platformParams.cx.autoNext"
                 label="自动进入下一题"
                 size="small"
-              /> -->
+                @change="handleChange('autoNext')"
+              />
             </div>
             <div
               v-for="setting in settings"
@@ -900,6 +920,16 @@ onMounted(() => {
                 v-bind="{ inputNumberAttr }"
                 :min="60"
                 :max="90"
+              />
+              <el-input-number
+                v-if="setting.value === 'playbackRate'"
+                class="settings-switch"
+                v-model="configStore.platformParams.cx.playbackRate"
+                v-bind="{ inputNumberAttr }"
+                @change="handleChange('playbackRate')"
+                :min="1"
+                :max="4"
+                :step="0.5"
               />
               <el-input-number
                 v-if="setting.value === 'interval'"
@@ -963,7 +993,7 @@ onMounted(() => {
             :type="item.type"
             show-icon
             :closable="false"
-            style="margin-bottom: 8px; border-radius: 4px"
+            style="margin-bottom: 4px; border-radius: 6px"
             ><template #title>
               <span class="value">{{ item.value }}</span>
             </template>
@@ -1007,7 +1037,7 @@ onMounted(() => {
 }
 .body-box {
   border-radius: 8px;
-  opacity: 1;
+
   /* 自动布局 */
   display: flex;
   flex-direction: column;
@@ -1027,7 +1057,6 @@ onMounted(() => {
   font-size: 14px;
   font-weight: 600;
   line-height: 21px;
-  letter-spacing: 0px;
 
   font-feature-settings: 'kern' on;
   color: #333333;
@@ -1038,16 +1067,13 @@ onMounted(() => {
   height: 40px;
   line-height: 40px;
   border-radius: 4px;
-  opacity: 1;
+
   margin: 18px 0;
 
   background: #3b82f6;
-
   font-size: 14px;
   font-weight: 500;
-
   text-align: center;
-  letter-spacing: 0px;
 
   color: #ffffff;
 }
@@ -1070,7 +1096,7 @@ onMounted(() => {
     font-size: 13px;
     font-weight: normal;
     line-height: 20px;
-    letter-spacing: 0px;
+
     font-feature-settings: 'kern' on;
     font-family: Roboto;
   }
@@ -1094,24 +1120,20 @@ onMounted(() => {
     flex-direction: column;
     gap: 4px;
     .title-text {
-      opacity: 1;
       background: rgba(0, 0, 0, 0);
-      opacity: 1;
+
       font-family: Roboto;
       font-size: 14px;
       font-weight: normal;
 
-      letter-spacing: 0px;
       font-feature-settings: 'kern' on;
       color: #000000;
     }
     .sub-title {
-      opacity: 1;
       font-family: Roboto;
       font-size: 12px;
       font-weight: normal;
       line-height: 18px;
-      letter-spacing: 0px;
 
       font-feature-settings: 'kern' on;
       color: #666666;

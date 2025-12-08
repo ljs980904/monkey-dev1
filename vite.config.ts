@@ -22,7 +22,7 @@ export default defineConfig({
       userscript: {
         name: '超星网课自动助手（智能答题版）',
         namespace: 'kaoyuansoft',
-        version: '2.0.0',
+        version: '2.0.1',
         description:
           '学习通全场景自动化神器！自动刷课（跳过弹窗、无缝切视频），章节测验、期末考全自动答题 —— 不止简单匹配题库，更用 DeepSeek 深度解析题目逻辑，让答题有 “智慧”，正确率远超普通脚本！所有功能可自定义（开关功能、选答题模式），彻底帮你省时间、少操心，轻松搞定学习通任务～',
         author: 'kaoyuansoft',

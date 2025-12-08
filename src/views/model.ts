@@ -45,6 +45,12 @@ export const settings = [
     type: 'input',
   },
   {
+    name: '视频倍速',
+    desc: '视频播放速度',
+    value: 'playbackRate',
+    type: 'input',
+  },
+  {
     name: '答题后切换间隔',
     desc: '答题、切换间隔(秒)',
     value: 'interval',

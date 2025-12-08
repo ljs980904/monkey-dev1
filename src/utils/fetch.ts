@@ -25,11 +25,12 @@ export const request = (
     onload: function (response) {
       if (response.status >= 200 && response.status < 300) {
         if (onSuccess) {
+          debugger;
           const resp = JSON.parse(response.responseText);
           if (resp.code === 200) {
-            onSuccess(resp.data);
+            onSuccess(resp);
           } else {
-            onError(new Error(resp.msg));
+            onError(resp);
           }
         }
       } else {
