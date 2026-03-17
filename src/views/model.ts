@@ -1,4 +1,15 @@
 import { request } from '../utils/fetch';
+export const column = [
+  {
+    prop: 'title',
+    label: '题目',
+  },
+  {
+    prop: 'answer',
+    label: '答案',
+    width: '140',
+  },
+];
 
 export const inputNumberAttr = {
   step: 1,
@@ -137,7 +148,7 @@ const types = {
  * @param ele 选项元素
  * @param data 题目和选项
  */
-export const simulateRequest = async (url, params, _self, keys) => {
+export const simulateRequest = async (params, _self, keys) => {
   return new Promise((resolve) => {
     const data = JSON.stringify({
       ...params,
@@ -146,8 +157,9 @@ export const simulateRequest = async (url, params, _self, keys) => {
     });
 
     let { author, version } = GM_info.script;
+    const SYSTEM_API_URL = 'https://autohelper.top/tiku/question/dpQuestion';
     request(
-      `${url}?s=${author}&v=${version}`,
+      `${SYSTEM_API_URL}?s=${author}&v=${version}`,
       'POST',
       {
         'Content-Type': 'application/json',
@@ -161,7 +173,7 @@ export const simulateRequest = async (url, params, _self, keys) => {
       },
       (error) => {
         resolve(error); // 即使出错，也继续执行
-      }
+      },
     );
   });
 };

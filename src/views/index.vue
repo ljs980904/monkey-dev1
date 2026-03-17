@@ -18,8 +18,7 @@ import {
   ElInputNumber,
   ElCheckbox,
 } from 'element-plus';
-import { reactive, onMounted, onUnmounted } from 'vue';
-import useUserInfoStore from '../stores/user'; //引入仓库
+import { reactive, onUnmounted, watch, ref, onMounted } from 'vue';
 import DraggableDialog from '../components/draggableDialog.vue';
 import { crackFont } from '../utils/crack-font';
 import { sleep } from '../utils';
@@ -30,13 +29,14 @@ import {
   guide,
   inputNumberAttr,
   protocol,
+  column,
 } from './model';
-
-const userInfoStore = useUserInfoStore();
-
+import { GM_setValue, GM_getValue } from '$';
+const envs = import.meta.env;
+const showDialog = ref(true);
+const activeTab = ref('settings');
 // 配置工具
 const configStore = reactive({
-  isShow: true,
   platformParams: {
     cx: {
       autoNext: true, // 自动切换
@@ -51,24 +51,10 @@ const configStore = reactive({
     rate: 85, // 正确率达到多少自动提交
     name: '其他参数',
   },
-  title: 'AT助手',
+  questionList: [],
   logData: [], // 日志
-  activeTab: 'settings',
-  key: '', // keys
-  url: 'https://autohelper.top/tiku/question/dpQuestion',
+  key: null, // keys
 });
-
-const column = [
-  {
-    prop: 'title',
-    label: '题目',
-  },
-  {
-    prop: 'answer',
-    label: '答案',
-    width: '140',
-  },
-];
 
 const __defProp = Object.defineProperty;
 const __defNormalProp = (obj, key, value) =>
@@ -99,7 +85,7 @@ const addLog = (obj) => {
 const waitIframeLoad = async (iframe) => {
   return new Promise((resolve) => {
     const intervalId = setInterval(async () => {
-      if (iframe.contentDocument?.readyState === 'complete') {
+      if (iframe?.contentDocument?.readyState === 'complete') {
         resolve();
         clearInterval(intervalId);
       }
@@ -114,11 +100,11 @@ const processIframe = async (iframe) => {
   const iframeWindow = iframe.contentWindow;
   // 检查 iframe 是否有效
   if (!iframeDocument || !iframeWindow) {
-    return Promise.resolve();
+    return;
   }
   // 跳过 JavaScript iframe
   if (iframeSrc.includes('javascript:')) {
-    return Promise.resolve();
+    return;
   }
   // 等待 iframe 加载完成
   await waitIframeLoad(iframe);
@@ -129,7 +115,7 @@ const processIframe = async (iframe) => {
       value: `发现一个已完成任务点`,
       type: 'success',
     });
-    return Promise.resolve();
+    return;
   }
   // 根据 iframe 的 src 处理任务点
   if (iframeSrc.includes('api/work')) {
@@ -147,19 +133,19 @@ const processIframe = async (iframe) => {
       : '';
     if (ansJobIcon) {
       if (iframeSrc.includes('video')) {
-        return await processMedia('video', iframeDocument);
+        return processMedia('video', iframeDocument);
       } else if (iframeSrc.includes('audio')) {
-        return await processMedia('audio', iframeDocument);
+        return processMedia('audio', iframeDocument);
       } else if (
         ['ppt', 'doc', 'pptx', 'docx', 'pdf'].some((type) =>
-          iframeSrc.includes('modules/' + type)
+          iframeSrc.includes('modules/' + type),
         )
       ) {
-        return await processPpt(iframeWindow);
+        return processPpt(iframeWindow);
       } else if (
         ['innerbook'].some((type) => iframeSrc.includes('modules/' + type))
       ) {
-        return await processBook(iframeWindow);
+        return processBook(iframeWindow);
       }
     }
   }
@@ -167,7 +153,7 @@ const processIframe = async (iframe) => {
 };
 // 处理任务点：视频/音频
 const processMedia = async (mediaType, iframeDocument) => {
-  return new Promise(async (resolve) => {
+  return new Promise((resolve) => {
     addLog({
       value: `发现一个${mediaType}，正在解析`,
       type: 'warning',
@@ -176,12 +162,15 @@ const processMedia = async (mediaType, iframeDocument) => {
       value: `正在尝试播放${mediaType}，请稍等`,
       type: 'warning',
     });
+    console.log('iframeDocument', iframeDocument);
+    console.log('mediaType', mediaType);
 
     let isExecuted = false;
     addLog({
       value: `播放成功`,
       type: 'success',
     });
+
     const intervalId = setInterval(async () => {
       const mediaElement =
         iframeDocument.documentElement.querySelector(mediaType);
@@ -194,7 +183,7 @@ const processMedia = async (mediaType, iframeDocument) => {
         mediaElement.muted = true;
         await mediaElement.play();
         const listener = async () => {
-          await sleep(configStore.platformParams.cx.timeInterval);
+          await sleep(3);
           await mediaElement.play();
         };
         mediaElement.addEventListener('pause', listener);
@@ -215,26 +204,19 @@ const processMedia = async (mediaType, iframeDocument) => {
 
 // 处理任务点：PPT/文档
 const processPpt = async (iframeWindow) => {
-  // console.log('iframeWindow', iframeWindow);
-  // addLog({
-  //   value: `处理 PPT/文档任务点`,
-  //   type: 'info',
-  // });
-  // debugger;
-  // const pptWindow = iframeWindow.document
-  //   .querySelector('#panView')
-  //   .contentWindow.querySelector('.fileBox');
-  // // contentWindow
+  // const pptWindow =
+  //   iframeWindow.document.querySelector('#panView').contentWindow;
+  // console.log('pptWindow', pptWindow, pptWindow.document.body.innerHTML);
 
-  // await pptWindow.scrollTo({
-  //   top: pptWindow.document.body.scrollHeight,
-  //   behavior: 'smooth',
-  // });
   // addLog({
   //   value: `发现一个PPT，正在解析`,
   //   type: 'warning',
   // });
-  // noRunFunc();
+  // await pptWindow.scrollTo({
+  //   top: pptWindow.document.body.scrollHeight,
+  //   behavior: 'smooth',
+  // });
+  // logStore.addLog('阅读完成', 'success');
   return Promise.resolve();
 };
 
@@ -256,8 +238,6 @@ class BaseQuestionHandler {
   constructor() {
     __publicField(this, '_document', document);
     __publicField(this, '_window', _unsafeWindow);
-    // __publicField(this, 'addLog', undefined);
-    // __publicField(this, 'addQuestion', undefined);
     __publicField(this, 'questions', []);
     __publicField(this, 'correctNum', 0);
     __publicField(this, 'parseHtml', () => {
@@ -282,7 +262,6 @@ class BaseQuestionHandler {
       if (html == null) {
         return '';
       }
-
       return html
         .replace(/<((?!img|sub|sup|br)[^>]+)>/g, '')
         .replace(/&nbsp;/g, ' ')
@@ -304,7 +283,6 @@ class CxQuestionHandler extends BaseQuestionHandler {
     __publicField(this, 'init', async () => {
       this.questions = [];
       this.parseHtml();
-
       if (this.questions.length) {
         addLog({
           value: `成功解析到${this.questions.length}个题目`,
@@ -312,12 +290,13 @@ class CxQuestionHandler extends BaseQuestionHandler {
         });
         for (const [index, question] of this.questions.entries()) {
           try {
+            debugger;
             const resp = await simulateRequest(
-              configStore.url,
               question,
               _unsafeWindow,
-              configStore.key
+              configStore.key,
             );
+            console.log('resp', resp);
             if (resp.code == 200) {
               const { answer, count } = resp.data;
               question.source = resp.source;
@@ -335,7 +314,7 @@ class CxQuestionHandler extends BaseQuestionHandler {
                   type: 'warning',
                 });
               }
-              userInfoStore.questionList = [question];
+              configStore.questionList = [question];
             } else {
               addLog({
                 value: resp.msg,
@@ -445,7 +424,7 @@ class CxQuestionHandler extends BaseQuestionHandler {
             }
           } else if (['ks'].includes(this.type)) {
             const optionElement = question.options[key].querySelector(
-              `span[data='${answer}']`
+              `span[data='${answer}']`,
             );
             if (
               optionElement == null
@@ -477,7 +456,7 @@ class CxQuestionHandler extends BaseQuestionHandler {
       const optionTextContent = this.removeHtml(
         ((_a = optionElement.querySelector(optionSelector)) == null
           ? void 0
-          : _a.innerHTML) || ''
+          : _a.innerHTML) || '',
       );
       optionsObject[optionTextContent] = optionElement;
       optionTexts.push(optionTextContent);
@@ -514,30 +493,30 @@ class CxQuestionHandler extends BaseQuestionHandler {
             this.removeHtml(colorShallowElement).slice(1, 4) || '';
         }
         questionTitle = this.removeHtml(
-          titleElement.split(colorShallowElement || '')[1] || ''
+          titleElement.split(colorShallowElement || '')[1] || '',
         );
         optionElements = questionElement.querySelectorAll('.answerBg');
         [optionsObject, optionTexts] = this.extractOptions(
           optionElements,
-          '.answer_p'
+          '.answer_p',
         );
       } else if (['zj'].includes(this.type)) {
         questionTitle = this.removeHtml(
           ((_c = questionElement.querySelector('.fontLabel')) == null
             ? void 0
-            : _c.innerHTML) || ''
+            : _c.innerHTML) || '',
         );
         questionTypeText = this.removeHtml(
           ((_d = questionElement.querySelector('.newZy_TItle')) == null
             ? void 0
-            : _d.innerHTML) || ''
+            : _d.innerHTML) || '',
         );
         optionElements = questionElement.querySelectorAll(
-          '[class*="before-after"]'
+          '[class*="before-after"]',
         );
         [optionsObject, optionTexts] = this.extractOptions(
           optionElements,
-          '.fl.after'
+          '.fl.after',
         );
       }
       this.questions.push({
@@ -690,7 +669,8 @@ const processIframeTask = () => {
     console.warn('No iframe found.');
     return;
   }
-  watchIframe(documentElement);
+
+  // watchIframe(documentElement);
   iframe.addEventListener('load', function () {
     watchIframe(documentElement);
   });
@@ -757,54 +737,33 @@ const useCxExamLogicFunc = async () => {
     });
   }
 };
-const getFunc = () => {
-  const urlLogicPairs = [
-    { keyword: '/mycourse/studentstudy', logic: useCxChapterFunc },
-    { keyword: '/mooc2/work/dowork', logic: useCxWorkLogicFunc },
-    { keyword: '/exam-ans/exam', logic: useCxExamLogicFunc },
-    { keyword: '/exam-ans/mooc2/exam/preview', logic: useCxExamLogicFunc },
-    {
-      keyword: 'mycourse/stu?courseid',
-      logic: () => {
-        addLog({
-          value: `该页面无任务，请进入章节或答题页面使用`,
-          type: 'error',
-        });
-      },
+
+const urlLogicPairs = [
+  { keyword: '/mycourse/studentstudy', logic: useCxChapterFunc },
+  { keyword: '/mooc2/work/dowork', logic: useCxWorkLogicFunc },
+  { keyword: '/exam-ans/exam', logic: useCxExamLogicFunc },
+  { keyword: '/exam-ans/mooc2/exam/preview', logic: useCxExamLogicFunc },
+  {
+    keyword: 'mycourse/stu?courseid',
+    logic: () => {
+      addLog({
+        value: `该页面无任务，请进入章节或答题页面使用`,
+        type: 'error',
+      });
     },
-    // { keyword: '/stuExamWeb.html', logic: useZhsAnswerLogicFunc },
-  ];
-  const executeLogicByUrl = async () => {
-    for (const { keyword, logic } of urlLogicPairs) {
-      if (window.location.href.includes(keyword)) {
-        logic();
-        configStore.isShow = true;
-        return;
-      }
+  },
+  // { keyword: '/stuExamWeb.html', logic: useZhsAnswerLogicFunc },
+];
+const executeLogicByUrl = async () => {
+  for (const { keyword, logic } of urlLogicPairs) {
+    if (window.location.href.includes(keyword)) {
+      logic();
+
+      showDialog.value = true;
+      return;
     }
-    configStore.isShow = false;
-  };
-
-  executeLogicByUrl();
-};
-
-const validateKey = async () => {
-  userInfoStore.key = configStore.key;
-  addLog({
-    value: `验证成功`,
-    type: 'success',
-  });
-};
-
-const clearKey = () => {
-  userInfoStore.key = null;
-};
-const handleChange = (key) => {
-  userInfoStore[key] = !userInfoStore[key];
-  addLog({
-    value: `切换成功、如需生效请刷新页面`,
-    type: 'warning',
-  });
+  }
+  showDialog.value = false;
 };
 
 const initConfig = () => {
@@ -820,32 +779,30 @@ const initConfig = () => {
     value: `脚本加载成功，正在解析网页`,
     type: 'success',
   });
-  if (userInfoStore.key) {
-    configStore.key = userInfoStore.key;
+  const config = GM_getValue('config');
+  if (config) {
+    configStore.key = config.key || null;
+    configStore.platformParams = config.platformParams;
   }
-  configStore.platformParams.cx.autoNext = userInfoStore.autoNext || false;
-  configStore.platformParams.cx.answeringMode =
-    userInfoStore.answeringMode || false;
-  configStore.platformParams.cx.playbackRate = userInfoStore.playbackRate || 1;
 };
-onMounted(() => {
-  initConfig();
-  getFunc();
+initConfig();
+executeLogicByUrl();
+watch(configStore, (newVal) => {
+  GM_setValue('config', newVal);
 });
-
 onUnmounted(() => {
-  userInfoStore.questionList = [];
+  configStore.questionList = [];
 });
 </script>
 <template>
-  <DraggableDialog :boundary="true" axis="both" v-if="configStore.isShow">
+  <DraggableDialog :boundary="true" axis="both" v-if="showDialog">
     <div class="tab-bar">
       <div
         v-for="tab in tabBars"
         :key="tab.value"
-        @click="configStore.activeTab = tab.value"
+        @click="activeTab = tab.value"
         class="tab-bar-item"
-        :class="[configStore.activeTab === tab.value ? 'active' : '']"
+        :class="[activeTab === tab.value ? 'active' : '']"
       >
         <el-icon>
           <Key v-if="tab.value === 'key'" />
@@ -857,7 +814,7 @@ onUnmounted(() => {
       </div>
     </div>
     <div class="content-body">
-      <template v-if="configStore.activeTab === 'key'" class="keys">
+      <template v-if="activeTab === 'key'" class="keys">
         <div class="validate-key body-box">
           <div class="card-title">
             <el-icon :size="18" color="#4a90e2"><Key /></el-icon>授权管理
@@ -865,26 +822,26 @@ onUnmounted(() => {
           <el-input
             v-model.trim="configStore.key"
             style="width: 100%"
-            placeholder="输入卡密、获取方式在帮助中查看"
+            placeholder="获取的卡密输入这里即可、获取方式在帮助中查看"
             clearable
-            @clear="clearKey"
           />
-          <div class="start-parse" @click="validateKey">卡密验证</div>
           <div style="margin-top: 16px">
             <div class="card-title">
               <el-icon :size="18" color="#4a90e2"><List /></el-icon>题目列表
             </div>
             <el-table
-              :data="userInfoStore.questionList"
+              :data="configStore.questionList"
               style="width: 100%"
+              :border="true"
               empty-text="暂无题目"
+              size="small"
             >
               <el-table-column v-for="c in column" :key="c" v-bind="c" />
             </el-table>
           </div>
         </div>
       </template>
-      <template v-if="configStore.activeTab === 'settings'">
+      <template v-if="activeTab === 'settings'">
         <div class="body-box">
           <div class="card-title">
             <el-icon :size="18" color="#4a90e2"><Operation /></el-icon>功能配置
@@ -895,13 +852,11 @@ onUnmounted(() => {
                 v-model="configStore.platformParams.cx.answeringMode"
                 label="只答题，不做其他"
                 size="small"
-                @change="handleChange('answeringMode')"
               />
               <el-checkbox
                 v-model="configStore.platformParams.cx.autoNext"
                 label="自动进入下一题"
                 size="small"
-                @change="handleChange('autoNext')"
               />
             </div>
             <div
@@ -909,15 +864,14 @@ onUnmounted(() => {
               class="settings-section"
               :key="setting.value"
             >
-              <div class="title">
-                <span class="title-text">{{ setting.desc }}</span>
-                <!-- <span class="sub-title">{{ setting.desc }}</span> -->
+              <div class="title title-text">
+                {{ setting.desc }}
               </div>
               <el-input-number
                 v-if="setting.value === 'rate'"
                 class="settings-switch"
                 v-model="configStore.otherParams.rate"
-                v-bind="{ inputNumberAttr }"
+                v-bind="inputNumberAttr"
                 :min="60"
                 :max="90"
               />
@@ -925,8 +879,7 @@ onUnmounted(() => {
                 v-if="setting.value === 'playbackRate'"
                 class="settings-switch"
                 v-model="configStore.platformParams.cx.playbackRate"
-                v-bind="{ inputNumberAttr }"
-                @change="handleChange('playbackRate')"
+                v-bind="inputNumberAttr"
                 :min="1"
                 :max="4"
                 :step="0.5"
@@ -935,7 +888,7 @@ onUnmounted(() => {
                 v-if="setting.value === 'interval'"
                 class="settings-switch"
                 v-model="configStore.otherParams.timeInterval"
-                v-bind="{ inputNumberAttr }"
+                v-bind="inputNumberAttr"
                 :min="3"
                 :max="10"
               />
@@ -943,7 +896,7 @@ onUnmounted(() => {
           </div>
         </div>
       </template>
-      <template v-if="configStore.activeTab === 'help'" class="guide">
+      <template v-if="activeTab === 'help'" class="guide">
         <div class="guide body-box">
           <div class="card-title">
             <el-icon :size="18" color="#4a90e2"><Notebook /></el-icon>使用指南
@@ -960,7 +913,7 @@ onUnmounted(() => {
           </div>
         </div>
       </template>
-      <template v-if="configStore.activeTab === 'protocol'" class="guide">
+      <template v-if="activeTab === 'protocol'" class="guide">
         <div class="guide body-box">
           <div class="card-title">
             <el-icon :size="18" color="#f56c6c"><Warning /></el-icon>协议
@@ -977,10 +930,7 @@ onUnmounted(() => {
           </div>
         </div>
       </template>
-      <div
-        class="log-generation body-box"
-        v-if="configStore.activeTab !== 'protocol'"
-      >
+      <div class="log-generation body-box" v-if="activeTab !== 'protocol'">
         <div class="card-title">
           <el-icon :size="18"><Comment /></el-icon>
           操作反馈
@@ -1007,9 +957,9 @@ onUnmounted(() => {
 .tab-bar {
   width: 100%;
   display: flex;
-  gap: 8px;
+  // gap: 8px;
   width: 100%;
-  padding: 9px 8px;
+  // padding: 9px 8px;
   box-sizing: border-box;
   .tab-bar-item {
     flex: 1;
@@ -1031,7 +981,7 @@ onUnmounted(() => {
   }
 }
 .content-body {
-  padding: 12px;
+  padding: 8px;
   box-sizing: border-box;
   background-color: #f5f5f5;
 }
@@ -1041,12 +991,12 @@ onUnmounted(() => {
   /* 自动布局 */
   display: flex;
   flex-direction: column;
-  padding: 12px;
+  padding: 10px;
   gap: 0px 10px;
   flex-wrap: wrap;
   align-content: flex-start;
-  background: linear-gradient(0deg, rgba(0, 0, 0, 0.001), rgba(0, 0, 0, 0.001)),
-    #ffffff;
+  background:
+    linear-gradient(0deg, rgba(0, 0, 0, 0.001), rgba(0, 0, 0, 0.001)), #ffffff;
   box-shadow: 0px 1px 3px 0px rgba(0, 0, 0, 0.1);
 }
 .card-title {
@@ -1080,9 +1030,9 @@ onUnmounted(() => {
 .log-generation {
   box-sizing: border-box;
   box-shadow: 0px 1px 3px 0px rgba(0, 0, 0, 0.1);
-  background: linear-gradient(0deg, rgba(0, 0, 0, 0.001), rgba(0, 0, 0, 0.001)),
-    #ffffff;
-  margin-top: 16px;
+  background:
+    linear-gradient(0deg, rgba(0, 0, 0, 0.001), rgba(0, 0, 0, 0.001)), #ffffff;
+  margin-top: 8px;
   .log-generation-content {
     width: 100%;
     max-height: 120px;
@@ -1115,20 +1065,21 @@ onUnmounted(() => {
   .settings-switch {
     margin-left: auto;
   }
+  .title-text {
+    background: rgba(0, 0, 0, 0);
+
+    font-family: Roboto;
+    font-size: 13px;
+    font-weight: normal;
+
+    font-feature-settings: 'kern' on;
+    color: #000000;
+  }
   .title {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    .title-text {
-      background: rgba(0, 0, 0, 0);
 
-      font-family: Roboto;
-      font-size: 14px;
-      font-weight: normal;
-
-      font-feature-settings: 'kern' on;
-      color: #000000;
-    }
     .sub-title {
       font-family: Roboto;
       font-size: 12px;

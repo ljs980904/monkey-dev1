@@ -1,12 +1,17 @@
 import { defineStore } from "pinia"
+import { createSharedState } from '@pinian/shared-state';
+import { GM_setValue, GM_getValue } from '$';
 const useUserInfoStore = defineStore('userInfo', {
-  persist: true, // 持久化
-  state: () => ({
-    key: null,
-    questionList: [],
-    answeringMode: false,
-    autoNext: false,
-    playbackRate: 1,
-  })
+  state: () => {
+    const storedConfig = GM_getValue("config");
+    const defaultConfig = {
+      key: null,
+      questionList: [],
+      answeringMode: false,
+      autoNext: false,
+      playbackRate: 1,
+    }
+    return defaultConfig;
+  }
 })
 export default useUserInfoStore

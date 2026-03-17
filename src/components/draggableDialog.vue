@@ -9,11 +9,11 @@
       <div class="avatar-name">
         {{ title }}
       </div>
-
       <div class="header-settings">
         <el-tooltip
           placement="bottom"
           content="请及时更新最新版、避免使用旧版本导致无法使用"
+          :z-index="999999"
         >
           <img :src="tips" alt="" class="tips" srcset="" />
         </el-tooltip>
@@ -37,12 +37,12 @@ const props = defineProps({
     default: '网课助手',
   },
   width: {
-    type: String,
-    default: '336px',
+    type: Number,
+    default: 400,
   },
   height: {
-    type: String,
-    default: '260px',
+    type: Number,
+    default: 523,
   },
   boundary: {
     type: Boolean,
@@ -69,8 +69,8 @@ const updateWindowSize = () => {
     height: window.innerHeight,
   };
   // 窗口尺寸更新时保持居中（可选）
-  const dialogWidth = parseInt(props.width) || 400;
-  const dialogHeight = parseInt(props.height) || 300;
+  const dialogWidth = parseInt(props.width);
+  const dialogHeight = parseInt(props.height);
   position.value.x = Math.max(0, (windowSize.value.width - dialogWidth) / 2);
   position.value.y = Math.max(0, (windowSize.value.height - dialogHeight) / 2);
 };
@@ -113,8 +113,8 @@ const onDrag = (e) => {
 
   // 边界限制
   if (props.boundary) {
-    const dialogWidth = parseInt(props.width) || 400;
-    const dialogHeight = parseInt(props.height) || 300;
+    const dialogWidth = parseInt(props.width);
+    const dialogHeight = parseInt(props.height);
     newX = Math.max(0, Math.min(newX, windowSize.value.width - dialogWidth));
     newY = Math.max(0, Math.min(newY, windowSize.value.height - dialogHeight));
   }
@@ -148,8 +148,8 @@ onMounted(() => {
   updateWindowSize();
   window.addEventListener('resize', updateWindowSize);
   // 初始化居中计算
-  const dialogWidth = parseInt(props.width) || 400;
-  const dialogHeight = parseInt(props.height) || 300;
+  const dialogWidth = parseInt(props.width);
+  const dialogHeight = parseInt(props.height);
   position.value = {
     x: (windowSize.value.width - dialogWidth) / 2,
     y: (windowSize.value.height - dialogHeight) / 2,
@@ -159,11 +159,11 @@ onMounted(() => {
   if (props.boundary) {
     position.value.x = Math.max(
       0,
-      Math.min(position.value.x, windowSize.value.width - dialogWidth)
+      Math.min(position.value.x, windowSize.value.width - dialogWidth),
     );
     position.value.y = Math.max(
       0,
-      Math.min(position.value.y, windowSize.value.height - dialogHeight)
+      Math.min(position.value.y, windowSize.value.height - dialogHeight),
     );
   }
 });
@@ -189,7 +189,7 @@ onUnmounted(() => {
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   overflow: hidden;
-  z-index: 1000;
+  z-index: 99999;
 
   .draggable-title {
     cursor: move;

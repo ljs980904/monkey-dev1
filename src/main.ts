@@ -1,7 +1,7 @@
 import { createApp } from 'vue';
 import ElementPlus from 'element-plus';
 import 'element-plus/dist/index.css';
-import piniaStore from './stores'; //引入
+// import piniaStore from './stores'; //引入
 import App from './App.vue';
 
 // 等待页面加载完成后执行插入
@@ -25,7 +25,7 @@ function mountApp() {
 
   const app = createApp(App);
   app.use(ElementPlus);
-  app.use(piniaStore);
+  // app.use(piniaStore);
 
   const container = document.createElement('div');
   document.body.append(container);

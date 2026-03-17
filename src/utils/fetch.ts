@@ -16,6 +16,7 @@ export const request = (
   onSuccess: Function,
   onError: Function
 ) => {
+  debugger;
   GM_xmlhttpRequest({
     method: method,
     headers,
@@ -24,8 +25,8 @@ export const request = (
     data: method === 'POST' ? data : null,
     onload: function (response) {
       if (response.status >= 200 && response.status < 300) {
+        debugger
         if (onSuccess) {
-          debugger;
           const resp = JSON.parse(response.responseText);
           if (resp.code === 200) {
             onSuccess(resp);
@@ -34,15 +35,12 @@ export const request = (
           }
         }
       } else {
-        if (onError) {
-          onError(new Error(`Request failed with status ${response.status}`));
-        }
+        onError(new Error(`Request failed with status ${response.status}`));
+
       }
     },
     onerror: function (error) {
-      if (onError) {
-        onError(error);
-      }
+      onError(error);
     },
   });
 };

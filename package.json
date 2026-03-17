@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@pinian/shared-state": "^1.0.1",
     "core-js": "^3.37.0",
     "element-plus": "^2.7.2",
     "md5": "^2.3.0",
